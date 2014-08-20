@@ -13,6 +13,7 @@ class Token {
 class TokenType {
   // TODO: Super gross. Better support for static properties or enum-like
   // objects.
+  // Punctuators.
   static leftParen    { __leftParen }
   static rightParen   { __rightParen }
   static leftBracket  { __leftBracket }
@@ -43,30 +44,31 @@ class TokenType {
   static equalEqual   { __equalEqual }
   static bangEqual    { __bangEqual }
 
+  // Keywords.
+  static break_       { __break }
+  static class_       { __class }
+  static else_        { __else }
+  static false_       { __false }
+  static for_         { __for }
+  static if_          { __if }
+  static in_          { __in }
+  static is_          { __is }
+  static new_         { __new }
+  static null_        { __null }
+  static return_      { __return }
+  static static_      { __static }
+  static super_       { __super }
+  static this_        { __this }
+  static true_        { __true }
+  static var_         { __var }
+  static while_       { __while }
+
   static name         { __name }
   static string       { __string }
 
   static error        { __error }
 
 /*
-  TOKEN_BREAK,
-  TOKEN_CLASS,
-  TOKEN_ELSE,
-  TOKEN_FALSE,
-  TOKEN_FOR,
-  TOKEN_IF,
-  TOKEN_IN,
-  TOKEN_IS,
-  TOKEN_NEW,
-  TOKEN_NULL,
-  TOKEN_RETURN,
-  TOKEN_STATIC,
-  TOKEN_SUPER,
-  TOKEN_THIS,
-  TOKEN_TRUE,
-  TOKEN_VAR,
-  TOKEN_WHILE,
-
   TOKEN_FIELD,
   TOKEN_STATIC_FIELD,
   TOKEN_NAME,
@@ -108,6 +110,24 @@ class TokenType {
     __greaterEqual = new TokenType("greaterEqual")
     __equalEqual = new TokenType("equalEqual")
     __bangEqual = new TokenType("bangEqual")
+
+    __break = new TokenType("break")
+    __class = new TokenType("class")
+    __else = new TokenType("else")
+    __false = new TokenType("false")
+    __for = new TokenType("for")
+    __if = new TokenType("if")
+    __in = new TokenType("in")
+    __is = new TokenType("is")
+    __new = new TokenType("new")
+    __null = new TokenType("null")
+    __return = new TokenType("return")
+    __static = new TokenType("static")
+    __super = new TokenType("super")
+    __this = new TokenType("this")
+    __true = new TokenType("true")
+    __var = new TokenType("var")
+    __while = new TokenType("while")
 
     __name = new TokenType("name")
     __string = new TokenType("string")
@@ -257,22 +277,68 @@ class Lexer {
   // Skips over whitespace characters.
   skipSpace {
     while (match(" ") || match("\t")) {
-      advance
+      // Already advanced.
     }
   }
 
-  // Reads a name token.
+  // Reads an identifier or keyword token.
   readName {
     advance
     while (_current < _source.count && "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789".contains(peek)) {
       advance
     }
 
-    makeToken(TokenType.name)
+    var type = TokenType.name
+
+    // TODO: Unify with makeToken.
+    var text = ""
+    for (i in _start..._current) {
+      text = text + _source[i]
+    }
+
+    if (text == "break") {
+      type = TokenType.break_
+    } else if (text == "class") {
+      type = TokenType.class_
+    } else if (text == "else") {
+      type = TokenType.else_
+    } else if (text == "false") {
+      type = TokenType.false_
+    } else if (text == "for") {
+      type = TokenType.for_
+    } else if (text == "if") {
+      type = TokenType.if_
+    } else if (text == "in") {
+      type = TokenType.in_
+    } else if (text == "is") {
+      type = TokenType.is_
+    } else if (text == "new") {
+      type = TokenType.new_
+    } else if (text == "null") {
+      type = TokenType.null_
+    } else if (text == "return") {
+      type = TokenType.return_
+    } else if (text == "static") {
+      type = TokenType.static_
+    } else if (text == "super") {
+      type = TokenType.super_
+    } else if (text == "this") {
+      type = TokenType.this_
+    } else if (text == "true") {
+      type = TokenType.true_
+    } else if (text == "var") {
+      type = TokenType.var_
+    } else if (text == "while") {
+      type = TokenType.while_
+    }
+
+    Fiber.yield(new Token(type, text))
   }
 }
 
-var s = "()(([ .foo_BAR123:..,... ]%|||&&& {    \t}!~)+-*/=!===<><=>="
+var s = "()(([ .foo_BAR123:..,... ]%|||&&& {    \t}!~)+-*/=!===<><=>=\n" +
+        "break class else false for if in is new null return static super this true var while"
+
 var lexer = new Lexer(s)
 var tokens = lexer.tokenize
 while (true) {
