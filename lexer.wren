@@ -1,5 +1,26 @@
 import "token" for Token
 
+// Utilities for working with characters.
+class Chars {
+  static lowerCaseA { 0x61 }
+  static lowerCaseZ { 0x7a }
+  static upperCaseA { 0x41 }
+  static upperCaseZ { 0x5a }
+  static underscore { 0x5f }
+  static zero { 0x30 }
+  static nine { 0x39 }
+
+  static isAlpha(c) {
+    // TODO: Should probably standardize on using code points everywhere.
+    if (c is String) c = c.codePoints[0]
+    return c >= lowerCaseA && c <= lowerCaseZ ||
+           c >= upperCaseA && c <= upperCaseZ ||
+           c == underscore
+  }
+
+  static isAlphaNumeric(c) { c >= zero && c <= nine || isAlpha(c) }
+}
+
 var KEYWORDS = {
   "break": Token.breakKeyword,
   "class": Token.classKeyword,
@@ -20,40 +41,35 @@ var KEYWORDS = {
   "while": Token.whileKeyword
 }
 
-var ONE_CHAR_TOKENS = {
-  "(": Token.leftParen,
-  ")": Token.rightParen,
-  "[": Token.leftBracket,
-  "]": Token.rightBracket,
-  "{": Token.leftBrace,
-  "}": Token.rightBrace,
-  ":": Token.colon,
-  ",": Token.comma,
-  "*": Token.star,
-  "/": Token.slash,
-  "\%": Token.percent,
-  "+": Token.plus,
-  "-": Token.minus,
-  "~": Token.tilde,
-}
+// Data table for tokens that are tokenized using maximal munch.
+//
+// The key is the character that starts the token or tokens. After that is a
+// list of token types and characters. As long as the next character is matched,
+// the type will update to the type after that character.
+var PUNCTUATORS = {
+  "(": [Token.leftParen],
+  ")": [Token.rightParen],
+  "[": [Token.leftBracket],
+  "]": [Token.rightBracket],
+  "{": [Token.leftBrace],
+  "}": [Token.rightBrace],
+  ":": [Token.colon],
+  ",": [Token.comma],
+  "*": [Token.star],
+  "/": [Token.slash],
+  "\%": [Token.percent],
+  "+": [Token.plus],
+  "-": [Token.minus],
+  "~": [Token.tilde],
 
-// Utilities for working with characters.
-class Chars {
-  static lowerCaseA { 0x61 }
-  static lowerCaseZ { 0x7a }
-  static upperCaseA { 0x41 }
-  static upperCaseZ { 0x5a }
-  static underscore { 0x5f }
-  static zero { 0x30 }
-  static nine { 0x39 }
+  "|": [Token.pipe, "|", Token.pipePipe],
+  "&": [Token.amp, "&", Token.ampAmp],
+  "!": [Token.bang, "=", Token.bangEqual],
+  "=": [Token.equal, "=", Token.equalEqual],
+  "<": [Token.less, "=", Token.lessEqual],
+  ">": [Token.greater, "=", Token.greaterEqual],
 
-  static isAlpha(c) {
-    return c >= lowerCaseA && c <= lowerCaseZ ||
-           c >= upperCaseA && c <= upperCaseZ ||
-           c == underscore
-  }
-
-  static isAlphaNumeric(c) { c >= zero && c <= nine || isAlpha(c) }
+  ".": [Token.dot, ".", Token.dotDot, ".", Token.dotDotDot]
 }
 
 class Lexer {
@@ -68,65 +84,26 @@ class Lexer {
   tokenize() {
     return Fiber.new {
       while (_current < _source.count) {
-        skipSpace()
+        skipWhitespace()
 
         _start = _current
 
-        var c = peek
-        if (ONE_CHAR_TOKENS.containsKey(c)) {
-          advance()
-          makeToken(ONE_CHAR_TOKENS[c])
-        } else if (match(".")) {
-          if (match(".")) {
-            if (match(".")) {
-              makeToken(Token.dotDotDot)
-            } else {
-              makeToken(Token.dotDot)
-            }
-          } else {
-            makeToken(Token.dot)
+        advance()
+        var c = _source[_current]
+        if (PUNCTUATORS.containsKey(c)) {
+          var punctuator = PUNCTUATORS[c]
+          var type = punctuator[0]
+          var i = 1
+          while (i < punctuator.count) {
+            if (!match(punctuator[i])) break
+            type = punctuator[i + 1]
+            i = i + 2
           }
-        } else if (match("|")) {
-          if (match("|")) {
-            makeToken(Token.pipePipe)
-          } else {
-            makeToken(Token.pipe)
-          }
-        } else if (match("&")) {
-          if (match("&")) {
-            makeToken(Token.ampAmp)
-          } else {
-            makeToken(Token.amp)
-          }
-        } else if (match("!")) {
-          if (match("=")) {
-            makeToken(Token.bangEqual)
-          } else {
-            makeToken(Token.bang)
-          }
-        } else if (match("=")) {
-          if (match("=")) {
-            makeToken(Token.equalEqual)
-          } else {
-            makeToken(Token.equal)
-          }
-        } else if (match("<")) {
-          if (match("=")) {
-            makeToken(Token.lessEqual)
-          } else {
-            makeToken(Token.less)
-          }
-        } else if (match(">")) {
-          if (match("=")) {
-            makeToken(Token.greaterEqual)
-          } else {
-            makeToken(Token.greater)
-          }
-        } else if (match {|c| Chars.isAlpha(c) }) {
+
+          makeToken(type)
+        } else if (Chars.isAlpha(c.codePoints[0])) {
           readName()
         } else {
-          // TODO: Do something better here.
-          advance()
           makeToken(Token.error)
         }
       }
@@ -140,9 +117,6 @@ class Lexer {
   advance() {
     _current = _current + 1
   }
-
-  // Gets the current character.
-  peek { _source[_current] }
 
   // Consumes the current character if it is [c].
   match(c) {
@@ -160,12 +134,11 @@ class Lexer {
 
   // Creates a token of [type] from the current character range.
   makeToken(type) {
-    System.print("%(_source.count) %(_start) %(_current)")
     Fiber.yield(Token.new(type, _source[_start..._current]))
   }
 
   // Skips over whitespace characters.
-  skipSpace() {
+  skipWhitespace() {
     while (match(" ") || match("\t")) {
       // Already advanced.
     }
