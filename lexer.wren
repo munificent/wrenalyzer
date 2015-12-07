@@ -81,36 +81,35 @@ class Lexer {
     _current = 0
   }
 
-  tokenize() {
-    return Fiber.new {
-      while (_current < _source.count) {
-        skipWhitespace()
+  nextToken() {
+    if (_current >= _source.count) return makeToken(Token.eof)
 
-        _start = _current
+    skipWhitespace()
 
-        advance()
-        var c = _source[_current]
-        if (PUNCTUATORS.containsKey(c)) {
-          var punctuator = PUNCTUATORS[c]
-          var type = punctuator[0]
-          var i = 1
-          while (i < punctuator.count) {
-            if (!match(punctuator[i])) break
-            type = punctuator[i + 1]
-            i = i + 2
-          }
+    // TODO: Skip comments.
 
-          makeToken(type)
-        } else if (Chars.isAlpha(c.codePoints[0])) {
-          readName()
-        } else {
-          makeToken(Token.error)
-        }
+    _start = _current
+    advance()
+    var c = _source[_current]
+
+    if (PUNCTUATORS.containsKey(c)) {
+      var punctuator = PUNCTUATORS[c]
+      var type = punctuator[0]
+      var i = 1
+      while (i < punctuator.count) {
+        if (!match(punctuator[i])) break
+        type = punctuator[i + 1]
+        i = i + 2
       }
 
-      _start = _current
-      makeToken(Token.eof)
+      return makeToken(type)
     }
+
+    if (Chars.isAlpha(c.codePoints[0])) return readName()
+
+    // TODO: Numbers, strings.
+
+    return makeToken(Token.error)
   }
 
   // Advances past the current character.
@@ -133,9 +132,7 @@ class Lexer {
   }
 
   // Creates a token of [type] from the current character range.
-  makeToken(type) {
-    Fiber.yield(Token.new(type, _source[_start..._current]))
-  }
+  makeToken(type) { Token.new(type, _source[_start..._current]) }
 
   // Skips over whitespace characters.
   skipWhitespace() {
@@ -156,6 +153,6 @@ class Lexer {
       type = KEYWORDS[text]
     }
 
-    Fiber.yield(Token.new(type, text))
+    return Token.new(type, text)
   }
 }
