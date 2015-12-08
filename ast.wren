@@ -84,10 +84,12 @@ class NullExpr is Expr {
   toString { "NullExpr(%(_token))"}
 }
 
-class NumberExpr is Expr {
-  construct new(value) {
-    _value = value
+class NumExpr is Expr {
+  construct new(token) {
+    _token = token
   }
+
+  toString { "NumExpr(%(_token))"}
 }
 
 class StaticFieldExpr is Expr {

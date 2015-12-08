@@ -6,7 +6,7 @@ import "ast" for
     MapEntry,
     MapExpr,
     NullExpr,
-    NumberExpr,
+    NumExpr,
     StaticFieldExpr,
     ThisExpr
 import "lexer" for Lexer
@@ -32,7 +32,7 @@ class Parser {
     prefix(Token.field)         {|token| FieldExpr.new(token) }
     prefix(Token.staticField)   {|token| StaticFieldExpr.new(token) }
     //      /* TOKEN_NAME          */ { name, NULL, namedSignature, PREC_NONE, NULL },
-    //      /* TOKEN_NUMBER        */ PREFIX(literal),
+    prefix(Token.number)        {|token| NumExpr.new(token) }
     //      /* TOKEN_STRING        */ PREFIX(literal),
     //      /* TOKEN_INTERPOLATION */ PREFIX(stringInterpolation),
   }

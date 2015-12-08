@@ -2,10 +2,10 @@ import "token" for Token
 
 // Utilities for working with characters.
 class Chars {
-  static lowerCaseA { 0x61 }
-  static lowerCaseZ { 0x7a }
-  static upperCaseA { 0x41 }
-  static upperCaseZ { 0x5a }
+  static lowerA { 0x61 }
+  static lowerZ { 0x7a }
+  static upperA { 0x41 }
+  static upperZ { 0x5a }
   static underscore { 0x5f }
   static zero { 0x30 }
   static nine { 0x39 }
@@ -13,12 +13,14 @@ class Chars {
   static isAlpha(c) {
     // TODO: Should probably standardize on using code points everywhere.
     if (c is String) c = c.codePoints[0]
-    return c >= lowerCaseA && c <= lowerCaseZ ||
-           c >= upperCaseA && c <= upperCaseZ ||
+    return c >= lowerA && c <= lowerZ ||
+           c >= upperA && c <= upperZ ||
            c == underscore
   }
 
-  static isAlphaNumeric(c) { c >= zero && c <= nine || isAlpha(c) }
+  static isDigit(c) { c >= zero && c <= nine }
+
+  static isAlphaNumeric(c) { isAlpha(c) || isDigit(c) }
 }
 
 var KEYWORDS = {
@@ -107,6 +109,7 @@ class Lexer {
 
     if (c == "_") return readField()
 
+    if (Chars.isDigit(c.codePoints[0])) return readNumber()
     if (Chars.isAlpha(c.codePoints[0])) return readName()
 
     // TODO: Numbers, strings.
@@ -151,7 +154,17 @@ class Lexer {
     // Read the rest of the name.
     while (match {|c| Chars.isAlphaNumeric(c) }) {}
 
-    return Token.new(type, _source[_start..._current])
+    return makeToken(type)
+  }
+
+  // Reads a number literal.
+  readNumber() {
+    // Read the rest of the name.
+    while (match {|c| Chars.isDigit(c) }) {}
+
+    // TODO: Hex, floating point, scientific.
+
+    return makeToken(Token.number)
   }
 
   // Reads an identifier or keyword token.
