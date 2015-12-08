@@ -89,8 +89,8 @@ class Lexer {
     // TODO: Skip comments.
 
     _start = _current
-    advance()
     var c = _source[_current]
+    advance()
 
     if (PUNCTUATORS.containsKey(c)) {
       var punctuator = PUNCTUATORS[c]
@@ -104,6 +104,8 @@ class Lexer {
 
       return makeToken(type)
     }
+
+    if (c == "_") return readField()
 
     if (Chars.isAlpha(c.codePoints[0])) return readName()
 
@@ -139,6 +141,17 @@ class Lexer {
     while (match(" ") || match("\t")) {
       // Already advanced.
     }
+  }
+
+  // Reads a static or instance field.
+  readField() {
+    var type = Token.field
+    if (match("_")) type = Token.staticField
+
+    // Read the rest of the name.
+    while (match {|c| Chars.isAlphaNumeric(c) }) {}
+
+    return Token.new(type, _source[_start..._current])
   }
 
   // Reads an identifier or keyword token.

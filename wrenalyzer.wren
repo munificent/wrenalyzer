@@ -1,12 +1,8 @@
 import "lexer" for Lexer
+import "parser" for Parser
+import "token" for Token
 
-var s = "()(([ .foo_BAR123:..,... ]\%|||&&& {    \t}!~)+-*/=!===<><=>=\n" +
-        "break class else false for if import in is null return static super this true var while"
-
-var lexer = Lexer.new(s)
-var tokens = lexer.tokenize()
-while (true) {
-  var token = tokens.call()
-  if (tokens.isDone) break
-  System.print(token)
-}
+var lexer = Lexer.new("{false: true, ((null)): [_field, __static], {}: this")
+var parser = Parser.new(lexer)
+var ast = parser.parse()
+System.print(ast)
