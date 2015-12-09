@@ -2,17 +2,47 @@ import "token" for Token
 
 // Utilities for working with characters.
 class Chars {
-  static lowerA { 0x61 }
-  static lowerZ { 0x7a }
-  static upperA { 0x41 }
-  static upperZ { 0x5a }
-  static underscore { 0x5f }
+  static tab { 0x09 }
+  static space { 0x20 }
+  static bang { 0x21 }
+  static percent { 0x25 }
+  static amp { 0x26 }
+  static leftParen { 0x28 }
+  static rightParen { 0x29 }
+  static star { 0x2a }
+  static plus { 0x2b }
+  static comma { 0x2c }
+  static minus { 0x2d }
+  static dot { 0x2e }
+  static slash { 0x2f }
+
   static zero { 0x30 }
+  static question { 0x3f }
   static nine { 0x39 }
 
+  static colon { 0x3a }
+  static less { 0x3c }
+  static equal { 0x3d }
+  static greater { 0x3e }
+  static question { 0x3f }
+
+  static upperA { 0x41 }
+  static upperZ { 0x5a }
+
+  static leftBracket { 0x5b }
+  static rightBracket { 0x5d }
+  static caret { 0x5e }
+  static underscore { 0x5f }
+
+  static lowerA { 0x61 }
+  static lowerZ { 0x7a }
+
+  static leftBrace { 0x7b }
+  static pipe { 0x7c }
+  static rightBrace { 0x7d }
+  static tilde { 0x7e }
+
   static isAlpha(c) {
-    // TODO: Should probably standardize on using code points everywhere.
-    if (c is String) c = c.codePoints[0]
     return c >= lowerA && c <= lowerZ ||
            c >= upperA && c <= upperZ ||
            c == underscore
@@ -49,49 +79,53 @@ var KEYWORDS = {
 // list of token types and characters. As long as the next character is matched,
 // the type will update to the type after that character.
 var PUNCTUATORS = {
-  "(": [Token.leftParen],
-  ")": [Token.rightParen],
-  "[": [Token.leftBracket],
-  "]": [Token.rightBracket],
-  "{": [Token.leftBrace],
-  "}": [Token.rightBrace],
-  ":": [Token.colon],
-  ",": [Token.comma],
-  "*": [Token.star],
-  "/": [Token.slash],
-  "\%": [Token.percent],
-  "+": [Token.plus],
-  "-": [Token.minus],
-  "~": [Token.tilde],
+  Chars.leftParen: [Token.leftParen],
+  Chars.rightParen: [Token.rightParen],
+  Chars.leftBracket: [Token.leftBracket],
+  Chars.rightBracket: [Token.rightBracket],
+  Chars.leftBrace: [Token.leftBrace],
+  Chars.rightBrace: [Token.rightBrace],
+  Chars.colon: [Token.colon],
+  Chars.comma: [Token.comma],
+  Chars.star: [Token.star],
+  Chars.slash: [Token.slash],
+  Chars.percent: [Token.percent],
+  Chars.plus: [Token.plus],
+  Chars.minus: [Token.minus],
+  Chars.tilde: [Token.tilde],
+  Chars.caret: [Token.caret],
+  Chars.question: [Token.question],
 
-  "|": [Token.pipe, "|", Token.pipePipe],
-  "&": [Token.amp, "&", Token.ampAmp],
-  "!": [Token.bang, "=", Token.bangEqual],
-  "=": [Token.equal, "=", Token.equalEqual],
-  "<": [Token.less, "=", Token.lessEqual],
-  ">": [Token.greater, "=", Token.greaterEqual],
+  Chars.pipe: [Token.pipe, Chars.pipe, Token.pipePipe],
+  Chars.amp: [Token.amp, Chars.amp, Token.ampAmp],
+  Chars.bang: [Token.bang, Chars.equal, Token.bangEqual],
+  Chars.equal: [Token.equal, Chars.equal, Token.equalEqual],
 
-  ".": [Token.dot, ".", Token.dotDot, ".", Token.dotDotDot]
+  Chars.dot: [Token.dot, Chars.dot, Token.dotDot, Chars.dot, Token.dotDotDot]
 }
 
 class Lexer {
   construct new(source) {
+    // Due to the magic of UTF-8, we can safely treat Wren source as a series
+    // of bytes, since the only code points that are meaningful to Wren fit in
+    // ASCII. The only place where non-ASCII code points can occur is inside
+    // string literals and comments and the lexer will treat those as opaque
+    // bytes safely.
     _source = source
-
-    // TODO: Make this explicitly work on bytes or code points.
+    _bytes = source.bytes
     _start = 0
     _current = 0
   }
 
   nextToken() {
-    if (_current >= _source.count) return makeToken(Token.eof)
+    if (_current >= _bytes.count) return makeToken(Token.eof)
 
     skipWhitespace()
 
     // TODO: Skip comments.
 
     _start = _current
-    var c = _source[_current]
+    var c = _bytes[_start]
     advance()
 
     if (PUNCTUATORS.containsKey(c)) {
@@ -107,12 +141,26 @@ class Lexer {
       return makeToken(type)
     }
 
-    if (c == "_") return readField()
+    // Handle "<", "<<", and "<=".
+    if (c == Chars.less) {
+      if (match(Chars.less)) return makeToken(Token.lessLess)
+      if (match(Chars.equal)) return makeToken(Token.lessEqual)
+      return makeToken(Token.less)
+    }
 
-    if (Chars.isDigit(c.codePoints[0])) return readNumber()
-    if (Chars.isAlpha(c.codePoints[0])) return readName()
+    // Handle ">", ">>", and ">=".
+    if (c == Chars.greater) {
+      if (match(Chars.greater)) return makeToken(Token.greaterGreater)
+      if (match(Chars.equal)) return makeToken(Token.greaterEqual)
+      return makeToken(Token.greater)
+    }
 
-    // TODO: Numbers, strings.
+    if (c == Chars.underscore) return readField()
+
+    if (Chars.isDigit(c)) return readNumber()
+    if (Chars.isAlpha(c)) return readName()
+
+    // TODO: Strings.
 
     return makeToken(Token.error)
   }
@@ -122,14 +170,17 @@ class Lexer {
     _current = _current + 1
   }
 
-  // Consumes the current character if it is [c].
-  match(c) {
-    if (_current >= _source.count) return false
+  // Consumes the current character if it matches [condition], which can be a
+  // numeric code point value or a function that takes a code point and returns
+  // `true` if the code point matches.
+  match(condition) {
+    if (_current >= _bytes.count) return false
 
-    if (c is String) {
-      if (_source[_current] != c) return false
-    } else if (c is Fn) {
-      if (!c.call(_source.codePoints[_current])) return false
+    var c = _bytes[_current]
+    if (condition is Fn) {
+      if (!condition.call(c)) return false
+    } else if (c != condition) {
+      return false
     }
 
     advance()
@@ -141,7 +192,7 @@ class Lexer {
 
   // Skips over whitespace characters.
   skipWhitespace() {
-    while (match(" ") || match("\t")) {
+    while (match(Chars.space) || match(Chars.tab)) {
       // Already advanced.
     }
   }
@@ -149,7 +200,7 @@ class Lexer {
   // Reads a static or instance field.
   readField() {
     var type = Token.field
-    if (match("_")) type = Token.staticField
+    if (match(Chars.underscore)) type = Token.staticField
 
     // Read the rest of the name.
     while (match {|c| Chars.isAlphaNumeric(c) }) {}

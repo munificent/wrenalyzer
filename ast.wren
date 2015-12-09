@@ -6,12 +6,47 @@ class Expr is Node {
 
 }
 
+class AssignmentExpr is Expr {
+  construct new(target, equal, value) {
+    _target = target
+    _equal = equal
+    _value = value
+  }
+
+  target { _target }
+  equal { _equal }
+  value { _value }
+
+  toString { "Assignment(%(_target) %(_equal) %(_value))" }
+}
+
 class BoolExpr is Expr {
   construct new(token) {
     _token = token
   }
 
-  toString { "BoolExpr(%(_token))"}
+  toString { "Bool(%(_token))" }
+}
+
+class ConditionalExpr is Expr {
+  construct new(condition, question, thenBranch, colon, elseBranch) {
+    _condition = condition
+    _question = question
+    _thenBranch = thenBranch
+    _colon = colon
+    _elseBranch = elseBranch
+  }
+
+  condition { _condition }
+  question { _question }
+  thenBranch { _thenBranch }
+  colon { _colon }
+  elseBranch { _elseBranch }
+
+  toString {
+    return "Conditional(%(_condition) %(_question) %(_thenBranch) " +
+           "%(_colon) %(_elseBranch))"
+  }
 }
 
 class FieldExpr is Expr {
@@ -19,7 +54,7 @@ class FieldExpr is Expr {
     _token = token
   }
 
-  toString { "FieldExpr(%(_token))"}
+  toString { "Field(%(_token))" }
 }
 
 class GroupingExpr is Expr {
@@ -33,7 +68,21 @@ class GroupingExpr is Expr {
   expression { _expression }
   rightParen { _rightParen }
 
-  toString { "GroupingExpr(%(_leftParen), %(_expression), %(_rightParen))" }
+  toString { "Grouping(%(_leftParen) %(_expression) %(_rightParen))" }
+}
+
+class InfixExpr is Expr {
+  construct new(left, operator, right) {
+    _left = left
+    _operator = operator
+    _right = right
+  }
+
+  left { _left }
+  operator { _operator }
+  right { _right }
+
+  toString { "Infix(%(_left) %(_operator) %(_right))" }
 }
 
 class ListExpr is Expr {
@@ -47,7 +96,7 @@ class ListExpr is Expr {
   elements { _elements }
   rightBracket { _rightBracket }
 
-  toString { "ListExpr(%(_leftBracket), %(_elements), %(_rightBracket))" }
+  toString { "List(%(_leftBracket) %(_elements) %(_rightBracket))" }
 }
 
 class MapEntry {
@@ -73,7 +122,7 @@ class MapExpr is Expr {
   entries { _entries }
   rightBracket { _rightBrace }
 
-  toString { "MapExpr(%(_leftBrace), %(_entries), %(_rightBrace))" }
+  toString { "Map(%(_leftBrace) %(_entries) %(_rightBrace))" }
 }
 
 class NullExpr is Expr {
@@ -81,7 +130,7 @@ class NullExpr is Expr {
     _token = token
   }
 
-  toString { "NullExpr(%(_token))"}
+  toString { "Null(%(_token))" }
 }
 
 class NumExpr is Expr {
@@ -89,7 +138,19 @@ class NumExpr is Expr {
     _token = token
   }
 
-  toString { "NumExpr(%(_token))"}
+  toString { "Num(%(_token))" }
+}
+
+class PrefixExpr is Expr {
+  construct new(operator, right) {
+    _operator = operator
+    _right = right
+  }
+
+  operator { _operator }
+  right { _right }
+
+  toString { "Prefix(%(_operator) %(_right))" }
 }
 
 class StaticFieldExpr is Expr {
@@ -97,7 +158,7 @@ class StaticFieldExpr is Expr {
     _token = token
   }
 
-  toString { "StaticFieldExpr(%(_token))"}
+  toString { "StaticField(%(_token))" }
 }
 
 class ThisExpr is Expr {
@@ -105,5 +166,5 @@ class ThisExpr is Expr {
     _token = token
   }
 
-  toString { "ThisExpr(%(_token))"}
+  toString { "This(%(_token))" }
 }

@@ -18,15 +18,19 @@ class Token {
   static minus { "minus" }
   static pipe { "pipe" }
   static pipePipe { "pipePipe" }
+  static caret { "caret" }
   static amp { "amp" }
   static ampAmp { "ampAmp" }
+  static question { "question" }
   static bang { "bang" }
   static tilde { "tilde" }
   static equal { "equal" }
   static less { "less" }
-  static greater { "greater" }
   static lessEqual { "lessEqual" }
+  static lessLess { "lessLess" }
+  static greater { "greater" }
   static greaterEqual { "greaterEqual" }
+  static greaterGreater { "greaterGreater" }
   static equalEqual { "equalEqual" }
   static bangEqual { "bangEqual" }
 
@@ -66,5 +70,5 @@ class Token {
   type { _type }
   text { _text }
 
-  toString { "%(_type) '%(_text)'" }
+  toString { _text }
 }
