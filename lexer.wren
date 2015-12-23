@@ -5,6 +5,7 @@ class Chars {
   static tab { 0x09 }
   static space { 0x20 }
   static bang { 0x21 }
+  static quote { 0x22 }
   static percent { 0x25 }
   static amp { 0x26 }
   static leftParen { 0x28 }
@@ -117,7 +118,7 @@ class Lexer {
     _current = 0
   }
 
-  nextToken() {
+  readToken() {
     if (_current >= _bytes.count) return makeToken(Token.eof)
 
     skipWhitespace()
@@ -125,7 +126,7 @@ class Lexer {
     // TODO: Skip comments.
 
     _start = _current
-    var c = _bytes[_start]
+    var c = _bytes[_current]
     advance()
 
     if (PUNCTUATORS.containsKey(c)) {
@@ -156,11 +157,10 @@ class Lexer {
     }
 
     if (c == Chars.underscore) return readField()
+    if (c == Chars.quote) return readString()
 
     if (Chars.isDigit(c)) return readNumber()
     if (Chars.isAlpha(c)) return readName()
-
-    // TODO: Strings.
 
     return makeToken(Token.error)
   }
@@ -206,6 +206,23 @@ class Lexer {
     while (match {|c| Chars.isAlphaNumeric(c) }) {}
 
     return makeToken(type)
+  }
+
+  // Reads a string literal.
+  readString() {
+    while (_current < _bytes.count) {
+      advance()
+      var c = _bytes[_current]
+
+      if (c == Chars.quote) break
+    }
+
+    // TODO: Handle unterminated string.
+
+    // TODO: Interpolation.
+    // TODO: Escapes.
+
+    return makeToken(Token.string)
   }
 
   // Reads a number literal.

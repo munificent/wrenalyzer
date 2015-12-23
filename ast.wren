@@ -28,6 +28,23 @@ class BoolExpr is Expr {
   toString { "Bool(%(_token))" }
 }
 
+class CallExpr is Expr {
+  construct new(receiver, name, arguments) {
+    _receiver = receiver
+    _name = name
+    _arguments = arguments
+  }
+
+  // The receiver of the method call.
+  //
+  // This will be null if the call has an implicit receiver.
+  receiver { _receiver }
+  name { _name }
+  arguments { _arguments }
+
+  toString { "Call(%(_receiver) %(_name) %(_arguments))" }
+}
+
 class ConditionalExpr is Expr {
   construct new(condition, question, thenBranch, colon, elseBranch) {
     _condition = condition
@@ -159,6 +176,25 @@ class StaticFieldExpr is Expr {
   }
 
   toString { "StaticField(%(_token))" }
+}
+
+class SubscriptExpr is Expr {
+  construct new(receiver, leftBracket, arguments, rightBracket) {
+    _receiver = receiver
+    _leftBracket = leftBracket
+    _arguments = arguments
+    _rightBracket = rightBracket
+  }
+
+  receiver { _receiver }
+  leftBracket { _leftBracket }
+  arguments { _arguments }
+  rightBracket { _rightBracket }
+
+  toString {
+    return "Subscript(%(_receiver) %(_leftBracket) %(_arguments) " +
+           "%(_rightBracket))"
+  }
 }
 
 class ThisExpr is Expr {

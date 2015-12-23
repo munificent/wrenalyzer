@@ -1,6 +1,7 @@
 import "ast" for
     AssignmentExpr,
     BoolExpr,
+    CallExpr,
     ConditionalExpr,
     FieldExpr,
     GroupingExpr,
@@ -12,6 +13,7 @@ import "ast" for
     NumExpr,
     PrefixExpr,
     StaticFieldExpr,
+    SubscriptExpr,
     ThisExpr
 import "lexer" for Lexer
 import "token" for Token
@@ -49,10 +51,16 @@ var FACTOR_OPERATORS = [
   Token.percent
 ]
 
+var PREFIX_OPERATORS = [
+  Token.minus,
+  Token.bang,
+  Token.tilde
+]
+
 class Parser {
   construct new(lexer) {
     _lexer = lexer
-    _current = _lexer.nextToken()
+    _current = _lexer.readToken()
   }
 
   parse() {
@@ -131,16 +139,77 @@ class Parser {
   // factorOperator: "*" | "/" | "%"
   factor() { parseInfix(FACTOR_OPERATORS) { prefix() } }
 
-  // prefix: ("-" | "!" | "~")* primary
+  // prefix: ("-" | "!" | "~")* call
   prefix() {
-    if (matchAny(Token.minus, Token.bang, Token.tilde)) {
+    if (matchAny(PREFIX_OPERATORS)) {
       return PrefixExpr.new(_previous, prefix())
     }
 
-    return primary()
+    return call()
   }
 
-  // TODO: Infix "." and "[" expressions.
+  // call: primary ( subscript | "." methodCall )*
+  // subscript: "[" argumentList "]"
+  call() {
+    var expr = primary()
+
+    while (true) {
+      if (match(Token.leftBracket)) {
+        var leftBracket = _previous
+        var arguments = argumentList()
+        var rightBracket = consume(Token.rightBracket,
+            "Expect ']' after subscript arguments.")
+        expr = SubscriptExpr.new(expr, leftBracket, arguments, rightBracket)
+      } else if (match(Token.dot)) {
+        expr = methodCall(expr)
+      } else {
+        break
+      }
+    }
+
+    return expr
+  }
+
+  // Parses a named method call, not including a possible leading receiver and
+  // "."
+  //
+  // methodCall: Name ( "(" argumentList? ")" )? blockArgument?
+  // blockArgument: "{" ( "|" parameterList "|" )? body "}"
+  // parameterList: Name ( "," Name )*
+  // body:
+  //   | "\n" ( definition "\n" )*
+  //   | expression
+  methodCall(receiver) {
+    var name = consume(Token.name, "Expect method name after '.'.")
+
+    var arguments
+    if (match(Token.leftParen)) {
+      // Allow an empty argument list. Note that we treat this differently than
+      // a getter (no argument list). The former will have a `null` argument
+      // list and the latter will have an empty one.
+      if (match(Token.rightParen)) {
+        arguments = []
+      } else {
+        arguments = argumentList()
+        consume(Token.rightParen, "Expect ')' after arguments.")
+      }
+    }
+
+    // TODO: Block argument.
+    return CallExpr.new(receiver, name, arguments)
+  }
+
+  // argumentList: expression ( "," expression )*
+  argumentList() {
+    var arguments = []
+
+    while (true) {
+      arguments.add(expression())
+      if (!match(Token.comma)) break
+    }
+
+    return arguments
+  }
 
   // primary:
   //   | grouping
@@ -163,7 +232,8 @@ class Parser {
 
     if (match(Token.number))        return NumExpr.new(_previous)
 
-    // TODO: Token.name.
+    // TODO: This parses all bare names as "getter calls". Is that what we want?
+    if (peek() == Token.name)       return methodCall(null)
     // TODO: Token.super.
     // TODO: Token.string.
     // TODO: Token.stringInterpolation.
@@ -189,14 +259,10 @@ class Parser {
     var leftBracket = _previous
     var elements = []
 
-    if (peek() != Token.rightBracket) {
-      while (true) {
-        elements.add(expression())
-        if (!match(Token.comma)) break
-      }
+    while (peek() != Token.rightBracket) {
+      elements.add(expression())
+      if (!match(Token.comma)) break
     }
-
-    // TODO: Allowing trailing comma.
 
     var rightBracket = consume(Token.rightBracket,
         "Expect ']' after list elements.")
@@ -211,18 +277,14 @@ class Parser {
     var leftBrace = _previous
     var entries = []
 
-    if (peek() != Token.rightBrace) {
-      while (true) {
-        var key = expression()
-        consume(Token.colon, "Expect ':' after map key.")
+    while (peek() != Token.rightBrace) {
+      var key = expression()
+      consume(Token.colon, "Expect ':' after map key.")
 
-        var value = expression()
-        entries.add(MapEntry.new(key, value))
-        if (!match(Token.comma)) break
-      }
+      var value = expression()
+      entries.add(MapEntry.new(key, value))
+      if (!match(Token.comma)) break
     }
-
-    // TODO: Allowing trailing comma.
 
     var rightBrace = consume(Token.rightBrace, "Expect '}' after map entries.")
     return MapExpr.new(leftBrace, entries, rightBrace)
@@ -251,6 +313,8 @@ class Parser {
     return consume()
   }
 
+  // Consumes and returns the next token if its type is contained in the list
+  // [types].
   matchAny(types) {
     for (type in types) {
       var result = match(type)
@@ -259,10 +323,6 @@ class Parser {
 
     return null
   }
-
-  matchAny(type1, type2) { match(type1) || match(type2) }
-
-  matchAny(type1, type2, type3) { match(type1) || match(type2) || match(type3) }
 
   // Reads and consumes the next token.
   consume() {
@@ -276,7 +336,6 @@ class Parser {
   // reports an error with [message]
   consume(type, message) {
     var token = consume()
-
     if (token.type != type) error(message)
 
     return token
@@ -284,7 +343,7 @@ class Parser {
 
   // Returns the type of the next token.
   peek() {
-    if (!_current) _current = _lexer.nextToken()
+    if (!_current) _current = _lexer.readToken()
     return _current.type
   }
 
