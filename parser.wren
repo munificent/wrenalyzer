@@ -1,20 +1,29 @@
 import "ast" for
     AssignmentExpr,
     BoolExpr,
+    BreakStmt,
     CallExpr,
+    ClassStmt,
     ConditionalExpr,
     FieldExpr,
+    ForStmt,
     GroupingExpr,
+    IfStmt,
+    ImportStmt,
     InfixExpr,
     ListExpr,
     MapEntry,
     MapExpr,
+    Module,
     NullExpr,
     NumExpr,
     PrefixExpr,
+    ReturnStmt,
     StaticFieldExpr,
     SubscriptExpr,
-    ThisExpr
+    ThisExpr,
+    VarStmt,
+    WhileStmt
 import "lexer" for Lexer
 import "token" for Token
 
@@ -63,11 +72,44 @@ class Parser {
     _current = _lexer.readToken()
   }
 
-  parse() {
-    // TODO: Statements, definitions.
-    var expr = expression()
+  parseModule() {
+    var statements = []
+    while (true) {
+      statements.add(definition())
+      if (!matchLine()) break
+      if (peek() == Token.eof) break
+    }
+
     consume(Token.eof, "Expect end of input.")
-    return expr
+    return Module.new(statements)
+  }
+
+  definition() {
+    // TODO: class, foreign class, import, var.
+
+    if (match(Token.importKeyword)) {
+      var path = consume(Token.string, "Expect import path.")
+      var variables
+
+      // Parse the variable list, if there is one.
+      if (match(Token.forKeyword)) {
+        variables = []
+        while (true) {
+          var name = consume(Token.name, "Expect variable name.")
+          variables.add(name)
+          if (!match(Token.comma)) break
+        }
+      }
+
+      return ImportStmt.new(path, variables)
+    }
+
+    return statement()
+  }
+
+  statement() {
+    // TODO: break, for, if, return, while.
+    return expression()
   }
 
   expression() { assignment() }
@@ -324,6 +366,16 @@ class Parser {
     return null
   }
 
+  // Consumes one or more newlines. Returns `true` if at least one was matched.
+  matchLine() {
+    if (!match(Token.line)) return false
+    while (match(Token.line)) {
+      // Do nothing.
+    }
+
+    return true
+  }
+
   // Reads and consumes the next token.
   consume() {
     peek()
@@ -349,7 +401,16 @@ class Parser {
 
   error(message) {
     // TODO: Handle this better.
-    System.print("Error on %(_previous): %(message)")
+    var token = _previous
+    if (token.type == Token.line) {
+      token = "newline"
+    } else if (token.type == Token.eof) {
+      token = "end of input"
+    } else if (token.type == Token.error) {
+      token = "invalid character '%(token.text)'"
+    }
+
+    System.print("Error on %(token): %(message)")
   }
 }
 

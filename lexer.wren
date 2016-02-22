@@ -3,6 +3,7 @@ import "token" for Token
 // Utilities for working with characters.
 class Chars {
   static tab { 0x09 }
+  static lineFeed { 0x0a }
   static space { 0x20 }
   static bang { 0x21 }
   static quote { 0x22 }
@@ -96,6 +97,7 @@ var PUNCTUATORS = {
   Chars.tilde: [Token.tilde],
   Chars.caret: [Token.caret],
   Chars.question: [Token.question],
+  Chars.lineFeed: [Token.line],
 
   Chars.pipe: [Token.pipe, Chars.pipe, Token.pipePipe],
   Chars.amp: [Token.amp, Chars.amp, Token.ampAmp],
@@ -165,31 +167,6 @@ class Lexer {
     return makeToken(Token.error)
   }
 
-  // Advances past the current character.
-  advance() {
-    _current = _current + 1
-  }
-
-  // Consumes the current character if it matches [condition], which can be a
-  // numeric code point value or a function that takes a code point and returns
-  // `true` if the code point matches.
-  match(condition) {
-    if (_current >= _bytes.count) return false
-
-    var c = _bytes[_current]
-    if (condition is Fn) {
-      if (!condition.call(c)) return false
-    } else if (c != condition) {
-      return false
-    }
-
-    advance()
-    return true
-  }
-
-  // Creates a token of [type] from the current character range.
-  makeToken(type) { Token.new(type, _source[_start..._current]) }
-
   // Skips over whitespace characters.
   skipWhitespace() {
     while (match(Chars.space) || match(Chars.tab)) {
@@ -214,7 +191,10 @@ class Lexer {
       advance()
       var c = _bytes[_current]
 
-      if (c == Chars.quote) break
+      if (c == Chars.quote) {
+        advance()
+        break
+      }
     }
 
     // TODO: Handle unterminated string.
@@ -249,4 +229,29 @@ class Lexer {
 
     return Token.new(type, text)
   }
+
+  // Advances past the current character.
+  advance() {
+    _current = _current + 1
+  }
+
+  // Consumes the current character if it matches [condition], which can be a
+  // numeric code point value or a function that takes a code point and returns
+  // `true` if the code point matches.
+  match(condition) {
+    if (_current >= _bytes.count) return false
+
+    var c = _bytes[_current]
+    if (condition is Fn) {
+      if (!condition.call(c)) return false
+    } else if (c != condition) {
+      return false
+    }
+
+    advance()
+    return true
+  }
+
+  // Creates a token of [type] from the current character range.
+  makeToken(type) { Token.new(type, _source[_start..._current]) }
 }
