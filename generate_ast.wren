@@ -14,6 +14,7 @@ var EXPRS = {
   "Field": ["name"],
   "Grouping": ["leftParen", "expression", "rightParen"],
   "Infix": ["left", "operator", "right"],
+  "Interpolation": ["strings", "expressions"],
   "List": ["leftBracket", "elements", "rightBracket"],
   "Map": ["leftBrace", "entries", "rightBrace"],
   "Null": ["value"],
@@ -85,6 +86,10 @@ class Method {
   name { _name }
   parameters { _parameters }
   body { _body }
+
+  toString {
+    return \"Method(\%(_staticKeyword) \%(_constructKeyword) \%(_name) \%(_parameters) \%(_body))\"
+  }
 }
 ")
 

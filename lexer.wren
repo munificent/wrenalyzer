@@ -60,6 +60,11 @@ class Lexer {
     _source = source
     _start = 0
     _current = 0
+
+    // The stack of ongoing interpolated strings. Each element in the list is
+    // a single level of interpolation nesting. The value of the element is the
+    // number of unbalanced "(" still remaining to be closed.
+    _interpolations = []
   }
 
   readToken() {
@@ -72,6 +77,23 @@ class Lexer {
     _start = _current
     var c = _source[_current]
     advance()
+
+    if (!_interpolations.isEmpty) {
+      if (c == Chars.leftParen) {
+        _interpolations[-1] = _interpolations[-1] + 1
+      } else if (c == Chars.rightParen) {
+        _interpolations[-1] = _interpolations[-1] - 1
+
+        // The last ")" in an interpolated expression ends the expression and
+        // resumes the string.
+        if (_interpolations[-1] == 0) {
+          // This is the final ")", so the interpolation expression has ended.
+          // This ")" now begins the next section of the template string.
+          _interpolations.removeAt(-1)
+          return readString()
+        }
+      }
+    }
 
     if (PUNCTUATORS.containsKey(c)) {
       var punctuator = PUNCTUATORS[c]
@@ -143,25 +165,30 @@ class Lexer {
 
   // Reads a string literal.
   readString() {
+    var type = Token.string
+
     while (_current < _source.count - 1) {
-      advance()
       var c = _source[_current]
+      advance()
 
       if (c == Chars.backslash) {
-        advance()
         // TODO: Process specific escapes and validate them.
-      } else if (c == Chars.quote) {
         advance()
+      } else if (c == Chars.percent) {
+        // Consume the '('.
+        advance()
+        // TODO: Handle missing '('.
+        _interpolations.add(1)
+        type = Token.interpolation
+        break
+      } else if (c == Chars.quote) {
         break
       }
     }
 
     // TODO: Handle unterminated string.
 
-    // TODO: Interpolation.
-    // TODO: Escapes.
-
-    return makeToken(Token.string)
+    return makeToken(type)
   }
 
   // Reads a number literal.

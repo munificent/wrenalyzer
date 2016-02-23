@@ -15,12 +15,11 @@ class Wrenalyzer {
     var source = SourceFile.new(path, code)
     var lexer = Lexer.new(source)
 
-    /*
-    while (true) {
-      var token = lexer.readToken()
-      System.print(token)
-      if (token.type == Token.eof) break
-    */
+//    while (true) {
+//      var token = lexer.readToken()
+//      System.print("%(token.type) '%(token.text)'")
+//      if (token.type == Token.eof) break
+//    }
 
     var parser = Parser.new(lexer)
     var ast = parser.parseModule()

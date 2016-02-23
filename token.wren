@@ -60,6 +60,7 @@ class Token {
   static name { "name" }
   static number { "number" }
   static string { "string" }
+  static interpolation { "interpolation" }
   static line { "line" }
   static error { "error" }
   static eof { "eof" }

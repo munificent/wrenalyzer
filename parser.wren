@@ -12,6 +12,7 @@ import "ast" for
     IfStmt,
     ImportStmt,
     InfixExpr,
+    InterpolationExpr,
     ListExpr,
     MapEntry,
     MapExpr,
@@ -161,7 +162,9 @@ class Parser {
 
   method() {
     // TODO: Foreign methods.
-    // TODO: Operators.
+    // Note: This parses more permissively than the grammar actually is. For
+    // example, it will allow "static construct *()". We'll report errors on
+    // invalid forms later.
     var staticKeyword
     if (match(Token.staticKeyword)) {
       staticKeyword = _previous
@@ -174,17 +177,29 @@ class Parser {
 
     // TODO: Error if both "static" and "construct" are present.
 
-    var name = consume(Token.name, "Expect method name.")
+    var name
     var parameters
 
-    if (match(Token.leftParen)) {
-      ignoreLine()
-      if (!match(Token.rightParen)) {
-        parameters = parameterList()
+    // TODO: Other operators.
+    if (match(Token.leftBracket)) {
+      // Subscript operator.
+      parameters = parameterList()
+      consume(Token.rightBracket, "Expect ']' after parameters.")
+      // TODO: Subscript setter.
+    } else {
+      name = consume(Token.name, "Expect method name.")
+
+      if (match(Token.leftParen)) {
         ignoreLine()
-        consume(Token.rightParen, "Expect ')' after parameters.")
+        if (!match(Token.rightParen)) {
+          parameters = parameterList()
+          ignoreLine()
+          consume(Token.rightParen, "Expect ')' after parameters.")
+        }
       }
     }
+
+    // TODO: Setters.
 
     consume(Token.leftBrace, "Expect '{' before method body.")
     var body = finishBlock()
@@ -455,25 +470,26 @@ class Parser {
   //   | "true" | "false" | "null" | "this"
   //   | Field | StaticField | Number
   primary() {
-    if (match(Token.leftParen))     return grouping()
-    if (match(Token.leftBracket))   return listLiteral()
-    if (match(Token.leftBrace))     return mapLiteral()
+    if (match(Token.leftParen))         return grouping()
+    if (match(Token.leftBracket))       return listLiteral()
+    if (match(Token.leftBrace))         return mapLiteral()
 
-    if (match(Token.falseKeyword))  return BoolExpr.new(_previous)
-    if (match(Token.trueKeyword))   return BoolExpr.new(_previous)
-    if (match(Token.nullKeyword))   return NullExpr.new(_previous)
-    if (match(Token.thisKeyword))   return ThisExpr.new(_previous)
+    if (match(Token.falseKeyword))      return BoolExpr.new(_previous)
+    if (match(Token.trueKeyword))       return BoolExpr.new(_previous)
+    if (match(Token.nullKeyword))       return NullExpr.new(_previous)
+    if (match(Token.thisKeyword))       return ThisExpr.new(_previous)
 
-    if (match(Token.field))         return FieldExpr.new(_previous)
-    if (match(Token.staticField))   return StaticFieldExpr.new(_previous)
+    if (match(Token.field))             return FieldExpr.new(_previous)
+    if (match(Token.staticField))       return StaticFieldExpr.new(_previous)
 
-    if (match(Token.number))        return NumExpr.new(_previous)
-    if (match(Token.string))        return StringExpr.new(_previous)
+    if (match(Token.number))            return NumExpr.new(_previous)
+    if (match(Token.string))            return StringExpr.new(_previous)
+
+    if (peek() == Token.interpolation)  return stringInterpolation()
 
     // TODO: This parses all bare names as "getter calls". Is that what we want?
-    if (peek() == Token.name)       return methodCall(null)
+    if (peek() == Token.name)           return methodCall(null)
     // TODO: Token.super.
-    // TODO: Token.stringInterpolation.
 
     error("Expected expression.")
     // TODO: Return what? Error Node?
@@ -535,6 +551,23 @@ class Parser {
 
     var rightBrace = consume(Token.rightBrace, "Expect '}' after map entries.")
     return MapExpr.new(leftBrace, entries, rightBrace)
+  }
+
+  // stringInterpolation: (interpolation expression )? string
+  stringInterpolation() {
+    var strings = []
+    var expressions = []
+
+    while (match(Token.interpolation)) {
+      strings.add(_previous)
+      expressions.add(expression())
+    }
+
+    // This error should never be reported. It's the lexer's job to ensure we
+    // generate the right token sequence.
+    strings.add(consume(Token.string, "Expect end of string interpolation."))
+
+    return InterpolationExpr.new(strings, expressions)
   }
 
   // Utility methods.

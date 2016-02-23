@@ -40,6 +40,10 @@ class Method {
   name { _name }
   parameters { _parameters }
   body { _body }
+
+  toString {
+    return "Method(%(_staticKeyword) %(_constructKeyword) %(_name) %(_parameters) %(_body))"
+  }
 }
 
 
@@ -276,6 +280,20 @@ class BoolExpr is Expr {
 
   toString {
     return "Bool(%(_value))"
+  }
+}
+
+class InterpolationExpr is Expr {
+  construct new(strings, expressions) {
+    _strings = strings
+    _expressions = expressions
+  }
+
+  strings { _strings }
+  expressions { _expressions }
+
+  toString {
+    return "Interpolation(%(_strings) %(_expressions))"
   }
 }
 
