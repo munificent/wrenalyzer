@@ -28,14 +28,18 @@ class Chars {
   static question { 0x3f }
 
   static upperA { 0x41 }
+  static upperF { 0x46 }
   static upperZ { 0x5a }
 
   static leftBracket { 0x5b }
+  static backslash { 0x5c }
   static rightBracket { 0x5d }
   static caret { 0x5e }
   static underscore { 0x5f }
 
   static lowerA { 0x61 }
+  static lowerF { 0x66 }
+  static lowerX { 0x78 }
   static lowerZ { 0x7a }
 
   static leftBrace { 0x7b }
@@ -52,4 +56,10 @@ class Chars {
   static isDigit(c) { c >= zero && c <= nine }
 
   static isAlphaNumeric(c) { isAlpha(c) || isDigit(c) }
+
+  static isHexDigit(c) {
+    return c >= zero && c <= nine ||
+           c >= lowerA && c <= lowerF ||
+           c >= upperA && c <= upperF
+  }
 }

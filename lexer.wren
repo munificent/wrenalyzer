@@ -103,6 +103,7 @@ class Lexer {
     if (c == Chars.underscore) return readField()
     if (c == Chars.quote) return readString()
 
+    if (c == Chars.zero && peek() == Chars.lowerX) return readHexNumber()
     if (Chars.isDigit(c)) return readNumber()
     if (Chars.isAlpha(c)) return readName()
 
@@ -142,11 +143,14 @@ class Lexer {
 
   // Reads a string literal.
   readString() {
-    while (!isAtEnd) {
+    while (_current < _source.count - 1) {
       advance()
       var c = _source[_current]
 
-      if (c == Chars.quote) {
+      if (c == Chars.backslash) {
+        advance()
+        // TODO: Process specific escapes and validate them.
+      } else if (c == Chars.quote) {
         advance()
         break
       }
@@ -161,12 +165,21 @@ class Lexer {
   }
 
   // Reads a number literal.
+  readHexNumber() {
+    // Skip past the `x`.
+    advance()
+
+    // Read the rest of the number.
+    while (match {|c| Chars.isHexDigit(c) }) {}
+    return makeToken(Token.number)
+  }
+
+  // Reads a number literal.
   readNumber() {
-    // Read the rest of the name.
+    // Read the rest of the number.
     while (match {|c| Chars.isDigit(c) }) {}
 
-    // TODO: Hex, floating point, scientific.
-
+    // TODO: Floating point, scientific.
     return makeToken(Token.number)
   }
 

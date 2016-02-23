@@ -140,7 +140,7 @@ class Parser {
     if (match(Token.isKeyword)) {
       // TODO: This is different from the VM (which is wrong). Need to make
       // sure we don't parse the class body as a block argument.
-      superclass = primary()
+      superclass = consume(Token.name, "Expect name of superclass.")
     }
 
     var methods = []
@@ -196,6 +196,30 @@ class Parser {
       return BreakStmt.new(_previous)
     }
 
+    if (match(Token.ifKeyword)) {
+      consume(Token.leftParen, "Expect '(' after 'if'.")
+      ignoreLine()
+      var condition = expression()
+      consume(Token.rightParen, "Expect ')' after if condition.")
+      var thenBranch = block()
+      var elseBranch
+      if (match(Token.elseKeyword)) {
+        elseBranch = block()
+      }
+      return IfStmt.new(condition, thenBranch, elseBranch)
+    }
+
+    if (match(Token.forKeyword)) {
+      consume(Token.leftParen, "Expect '(' after 'for'.")
+      var variable = consume(Token.name, "Expect for loop variable name.")
+      consume(Token.inKeyword, "Expect 'in' after loop variable.")
+      ignoreLine()
+      var iterator = expression()
+      consume(Token.rightParen, "Expect ')' after loop expression.")
+      var body = block()
+      return ForStmt.new(variable, iterator, body)
+    }
+
     if (match(Token.returnKeyword)) {
       var keyword = _previous
       var value
@@ -206,8 +230,28 @@ class Parser {
       return ReturnStmt.new(keyword, value)
     }
 
+    if (match(Token.whileKeyword)) {
+      consume(Token.leftParen, "Expect '(' after 'while'.")
+      ignoreLine()
+      var condition = expression()
+      consume(Token.rightParen, "Expect ')' after while condition.")
+      var body = block()
+      return WhileStmt.new(condition, body)
+    }
+
     // TODO: for, if, while.
     return expression()
+  }
+
+  // Parses a curly block or an expression statement. Used in places like the
+  // arms of an if statement where either a single expression or a curly body
+  // is allowed.
+  block() {
+    // Curly block.
+    if (match(Token.leftBrace)) return finishBlock()
+
+    // Single statement body.
+    return statement()
   }
 
   // Parses the rest of a curly-braced block after the "{" has been consumed.
@@ -218,6 +262,7 @@ class Parser {
     // If there's no line after the "{", it's a single-expression body.
     if (!matchLine()) {
       var expr = expression()
+      ignoreLine()
       consume(Token.rightBrace, "Expect '}' at end of block.")
       return expr
     }
@@ -361,8 +406,19 @@ class Parser {
       }
     }
 
+    var blockParameters
+    var blockBody
+    if (match(Token.leftBrace)) {
+      if (match(Token.pipe)) {
+        blockParameters = parameterList()
+        consume(Token.pipe, "Expect '|' after block parameters.")
+      }
+
+      blockBody = finishBlock()
+    }
+
     // TODO: Block argument.
-    return CallExpr.new(receiver, name, arguments)
+    return CallExpr.new(receiver, name, arguments, blockParameters, blockBody)
   }
 
   // argumentList: expression ( "," expression )*
@@ -417,7 +473,6 @@ class Parser {
     // TODO: This parses all bare names as "getter calls". Is that what we want?
     if (peek() == Token.name)       return methodCall(null)
     // TODO: Token.super.
-    // TODO: Token.string.
     // TODO: Token.stringInterpolation.
 
     error("Expected expression.")
@@ -441,9 +496,14 @@ class Parser {
     var leftBracket = _previous
     var elements = []
 
+    ignoreLine()
+
     while (peek() != Token.rightBracket) {
       elements.add(expression())
+
+      ignoreLine()
       if (!match(Token.comma)) break
+      ignoreLine()
     }
 
     var rightBracket = consume(Token.rightBracket,
@@ -486,6 +546,7 @@ class Parser {
     var expr = parseOperand.call()
     while (matchAny(tokenTypes)) {
       var operator = _previous
+      ignoreLine()
       var right = parseOperand.call()
       expr = InfixExpr.new(expr, operator, right)
     }

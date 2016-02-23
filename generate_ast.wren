@@ -9,7 +9,7 @@ import "io" for File
 var EXPRS = {
   "Assignment": ["target", "equal", "value"],
   "Bool": ["value"],
-  "Call": ["receiver", "name", "arguments"],
+  "Call": ["receiver", "name", "arguments", "blockParameters", "blockBody"],
   "Conditional": ["condition", "question", "thenBranch", "colon", "elseBranch"],
   "Field": ["name"],
   "Grouping": ["leftParen", "expression", "rightParen"],

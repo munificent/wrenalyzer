@@ -108,18 +108,22 @@ class FieldExpr is Expr {
 }
 
 class CallExpr is Expr {
-  construct new(receiver, name, arguments) {
+  construct new(receiver, name, arguments, blockParameters, blockBody) {
     _receiver = receiver
     _name = name
     _arguments = arguments
+    _blockParameters = blockParameters
+    _blockBody = blockBody
   }
 
   receiver { _receiver }
   name { _name }
   arguments { _arguments }
+  blockParameters { _blockParameters }
+  blockBody { _blockBody }
 
   toString {
-    return "Call(%(_receiver) %(_name) %(_arguments))"
+    return "Call(%(_receiver) %(_name) %(_arguments) %(_blockParameters) %(_blockBody))"
   }
 }
 
