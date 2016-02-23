@@ -1,66 +1,14 @@
+import "chars" for Chars
 import "token" for Token
-
-// Utilities for working with characters.
-class Chars {
-  static tab { 0x09 }
-  static lineFeed { 0x0a }
-  static space { 0x20 }
-  static bang { 0x21 }
-  static quote { 0x22 }
-  static percent { 0x25 }
-  static amp { 0x26 }
-  static leftParen { 0x28 }
-  static rightParen { 0x29 }
-  static star { 0x2a }
-  static plus { 0x2b }
-  static comma { 0x2c }
-  static minus { 0x2d }
-  static dot { 0x2e }
-  static slash { 0x2f }
-
-  static zero { 0x30 }
-  static question { 0x3f }
-  static nine { 0x39 }
-
-  static colon { 0x3a }
-  static less { 0x3c }
-  static equal { 0x3d }
-  static greater { 0x3e }
-  static question { 0x3f }
-
-  static upperA { 0x41 }
-  static upperZ { 0x5a }
-
-  static leftBracket { 0x5b }
-  static rightBracket { 0x5d }
-  static caret { 0x5e }
-  static underscore { 0x5f }
-
-  static lowerA { 0x61 }
-  static lowerZ { 0x7a }
-
-  static leftBrace { 0x7b }
-  static pipe { 0x7c }
-  static rightBrace { 0x7d }
-  static tilde { 0x7e }
-
-  static isAlpha(c) {
-    return c >= lowerA && c <= lowerZ ||
-           c >= upperA && c <= upperZ ||
-           c == underscore
-  }
-
-  static isDigit(c) { c >= zero && c <= nine }
-
-  static isAlphaNumeric(c) { isAlpha(c) || isDigit(c) }
-}
 
 var KEYWORDS = {
   "break": Token.breakKeyword,
   "class": Token.classKeyword,
+  "construct": Token.constructKeyword,
   "else": Token.elseKeyword,
   "false": Token.falseKeyword,
   "for": Token.forKeyword,
+  "foreign": Token.foreignKeyword,
   "if": Token.ifKeyword,
   "import": Token.importKeyword,
   "in": Token.inKeyword,
@@ -109,26 +57,20 @@ var PUNCTUATORS = {
 
 class Lexer {
   construct new(source) {
-    // Due to the magic of UTF-8, we can safely treat Wren source as a series
-    // of bytes, since the only code points that are meaningful to Wren fit in
-    // ASCII. The only place where non-ASCII code points can occur is inside
-    // string literals and comments and the lexer will treat those as opaque
-    // bytes safely.
     _source = source
-    _bytes = source.bytes
     _start = 0
     _current = 0
   }
 
   readToken() {
-    if (_current >= _bytes.count) return makeToken(Token.eof)
+    if (_current >= _source.count) return makeToken(Token.eof)
 
     skipWhitespace()
 
     // TODO: Skip comments.
 
     _start = _current
-    var c = _bytes[_current]
+    var c = _source[_current]
     advance()
 
     if (PUNCTUATORS.containsKey(c)) {
@@ -167,10 +109,23 @@ class Lexer {
     return makeToken(Token.error)
   }
 
-  // Skips over whitespace characters.
+  // Skips over whitespace and comments.
   skipWhitespace() {
-    while (match(Chars.space) || match(Chars.tab)) {
-      // Already advanced.
+    while (true) {
+      var c = peek()
+      if (c == Chars.tab || c == Chars.carriageReturn || c == Chars.space) {
+        // Whitespace is ignored.
+        advance()
+      } else if (c == Chars.slash && peek(1) == Chars.slash) {
+        // A line comment stops at the newline since newlines are significant.
+        while (peek() != Chars.lineFeed && !isAtEnd) {
+          advance()
+        }
+      } else {
+        break
+      }
+
+      // TODO: Block comments.
     }
   }
 
@@ -187,9 +142,9 @@ class Lexer {
 
   // Reads a string literal.
   readString() {
-    while (_current < _bytes.count) {
+    while (!isAtEnd) {
       advance()
-      var c = _bytes[_current]
+      var c = _source[_current]
 
       if (c == Chars.quote) {
         advance()
@@ -220,28 +175,40 @@ class Lexer {
     // Read the rest of the name.
     while (match {|c| Chars.isAlphaNumeric(c) }) {}
 
-    var text = _source[_start..._current]
-
+    var text = _source.substring(_start, _current - _start)
     var type = Token.name
     if (KEYWORDS.containsKey(text)) {
       type = KEYWORDS[text]
     }
 
-    return Token.new(type, text)
+    return Token.new(_source, type, _start, _current - _start)
   }
+
+  // Returns `true` if we have scanned all characters.
+  isAtEnd { _current >= _source.count }
 
   // Advances past the current character.
   advance() {
     _current = _current + 1
   }
 
+  // Returns the byte value of the current character.
+  peek() { peek(0) }
+
+  // Returns the byte value of the character [n] bytes past the current
+  // character.
+  peek(n) {
+    if (_current + n >= _source.count) return -1
+    return _source[_current + n]
+  }
+
   // Consumes the current character if it matches [condition], which can be a
   // numeric code point value or a function that takes a code point and returns
   // `true` if the code point matches.
   match(condition) {
-    if (_current >= _bytes.count) return false
+    if (isAtEnd) return false
 
-    var c = _bytes[_current]
+    var c = _source[_current]
     if (condition is Fn) {
       if (!condition.call(c)) return false
     } else if (c != condition) {
@@ -253,5 +220,5 @@ class Lexer {
   }
 
   // Creates a token of [type] from the current character range.
-  makeToken(type) { Token.new(type, _source[_start..._current]) }
+  makeToken(type) { Token.new(_source, type, _start, _current - _start) }
 }

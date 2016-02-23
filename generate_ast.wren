@@ -20,11 +20,13 @@ var EXPRS = {
   "Num": ["value"],
   "Prefix": ["operator", "right"],
   "StaticField": ["name"],
+  "String": ["value"],
   "Subscript": ["receiver", "leftBracket", "arguments", "rightBracket"],
   "This": ["keyword"]
 }
 
 var STMTS = {
+  "Block": ["statements"],
   "Break": ["keyword"],
   "Class": ["foreignKeyword", "name", "superclass", "methods"],
   "For": ["variable", "iterator", "body"],
@@ -41,33 +43,50 @@ class AstBuilder {
   build() {
     _file = File.create("ast.wren")
 
-    writeLine("class Node {}")
-    writeLine()
-    writeLine("class Expr is Node {}")
-    writeLine()
-    writeLine("class Stmt is Node {}")
-    writeLine()
-    writeLine("class Module is Node {")
-    writeLine("  construct new(statements) {")
-    writeLine("    _statements = statements")
-    writeLine("  }")
-    writeLine()
-    writeLine("  statements { _statements }")
-    writeLine()
-    writeLine("  toString { \"Module(\%(_statements))\" }")
-    writeLine("}")
-    writeLine()
-    writeLine("class MapEntry {")
-    writeLine("  construct new(key, value) {")
-    writeLine("    _key = key")
-    writeLine("    _value = value")
-    writeLine("  }")
-    writeLine()
-    writeLine("  key { _key }")
-    writeLine("  value { _value }")
-    writeLine()
-    writeLine("  toString { \"\%(_key): \%(_value)\" }")
-    writeLine("}")
+    writeLine("class Node {}
+
+class Expr is Node {}
+
+class Stmt is Node {}
+
+class Module is Node {
+  construct new(statements) {
+    _statements = statements
+  }
+
+  statements { _statements }
+
+  toString { \"Module(\%(_statements))\" }
+}
+
+class MapEntry {
+  construct new(key, value) {
+    _key = key
+    _value = value
+  }
+
+  key { _key }
+  value { _value }
+
+  toString { \"\%(_key): \%(_value)\" }
+}
+
+class Method {
+  construct new(staticKeyword, constructKeyword, name, parameters, body) {
+    _staticKeyword = staticKeyword
+    _constructKeyword = constructKeyword
+    _name = name
+    _parameters = parameters
+    _body = body
+  }
+
+  staticKeyword { _staticKeyword }
+  constructKeyword { _constructKeyword }
+  name { _name }
+  parameters { _parameters }
+  body { _body }
+}
+")
 
     writeClasses(EXPRS, "Expr")
     writeClasses(STMTS, "Stmt")

@@ -37,9 +37,11 @@ class Token {
   // Keywords.
   static breakKeyword { "break" }
   static classKeyword { "class" }
+  static constructKeyword { "construct" }
   static elseKeyword { "else" }
   static falseKeyword { "false" }
   static forKeyword { "for" }
+  static foreignKeyword { "foreign" }
   static ifKeyword { "if" }
   static importKeyword { "import" }
   static inKeyword { "in" }
@@ -62,13 +64,25 @@ class Token {
   static error { "error" }
   static eof { "eof" }
 
-  construct new(type, text) {
+  construct new(source, type, start, length) {
+    _source = source
     _type = type
-    _text = text
+    _start = start
+    _length = length
   }
 
+  /// The source file this token was parsed from.
+  source { _source }
   type { _type }
-  text { _text }
+  text { _source.substring(_start, _length) }
 
-  toString { _text }
+  /// The 1-based line number that the token starts on.
+  lineStart { _source.lineAt(_start) }
+  lineEnd { _source.lineAt(_start + _length) }
+
+  /// The 1-based column number that the token starts on.
+  columnStart { _source.columnAt(_start) }
+  columnEnd { _source.columnAt(_start + _length) }
+
+  toString { text }
 }

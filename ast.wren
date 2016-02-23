@@ -26,6 +26,23 @@ class MapEntry {
   toString { "%(_key): %(_value)" }
 }
 
+class Method {
+  construct new(staticKeyword, constructKeyword, name, parameters, body) {
+    _staticKeyword = staticKeyword
+    _constructKeyword = constructKeyword
+    _name = name
+    _parameters = parameters
+    _body = body
+  }
+
+  staticKeyword { _staticKeyword }
+  constructKeyword { _constructKeyword }
+  name { _name }
+  parameters { _parameters }
+  body { _body }
+}
+
+
 class ListExpr is Expr {
   construct new(leftBracket, elements, rightBracket) {
     _leftBracket = leftBracket
@@ -216,6 +233,18 @@ class NumExpr is Expr {
   }
 }
 
+class StringExpr is Expr {
+  construct new(value) {
+    _value = value
+  }
+
+  value { _value }
+
+  toString {
+    return "String(%(_value))"
+  }
+}
+
 class SubscriptExpr is Expr {
   construct new(receiver, leftBracket, arguments, rightBracket) {
     _receiver = receiver
@@ -273,6 +302,18 @@ class ReturnStmt is Stmt {
 
   toString {
     return "Return(%(_keyword) %(_value))"
+  }
+}
+
+class BlockStmt is Stmt {
+  construct new(statements) {
+    _statements = statements
+  }
+
+  statements { _statements }
+
+  toString {
+    return "Block(%(_statements))"
   }
 }
 

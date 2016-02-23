@@ -1,5 +1,6 @@
 import "ast" for
     AssignmentExpr,
+    BlockStmt,
     BoolExpr,
     BreakStmt,
     CallExpr,
@@ -14,12 +15,14 @@ import "ast" for
     ListExpr,
     MapEntry,
     MapExpr,
+    Method,
     Module,
     NullExpr,
     NumExpr,
     PrefixExpr,
     ReturnStmt,
     StaticFieldExpr,
+    StringExpr,
     SubscriptExpr,
     ThisExpr,
     VarStmt,
@@ -73,11 +76,12 @@ class Parser {
   }
 
   parseModule() {
+    ignoreLine()
+
     var statements = []
-    while (true) {
+    while (peek() != Token.eof) {
       statements.add(definition())
       if (!matchLine()) break
-      if (peek() == Token.eof) break
     }
 
     consume(Token.eof, "Expect end of input.")
@@ -85,7 +89,15 @@ class Parser {
   }
 
   definition() {
-    // TODO: class, foreign class, import, var.
+    if (match(Token.classKeyword)) {
+      return finishClass(null)
+    }
+
+    if (match(Token.foreignKeyword)) {
+      var foreignKeyword = _previous
+      consume(Token.classKeyword, "Expect 'class' after 'foreign'.")
+      return finishClass(foreignKeyword)
+    }
 
     if (match(Token.importKeyword)) {
       var path = consume(Token.string, "Expect import path.")
@@ -93,23 +105,135 @@ class Parser {
 
       // Parse the variable list, if there is one.
       if (match(Token.forKeyword)) {
+        ignoreLine()
+
         variables = []
         while (true) {
           var name = consume(Token.name, "Expect variable name.")
           variables.add(name)
           if (!match(Token.comma)) break
+          ignoreLine()
         }
       }
 
       return ImportStmt.new(path, variables)
     }
 
+    if (match(Token.varKeyword)) {
+      var name = consume(Token.name, "Expect variable name.")
+      var initializer
+      if (match(Token.equal)) {
+        initializer = expression()
+      }
+
+      return VarStmt.new(name, initializer)
+    }
+
     return statement()
   }
 
+  // Parses the rest of a class definition after the "class" token.
+  finishClass(foreignKeyword) {
+    var name = consume(Token.name, "Expect class name.")
+
+    var superclass
+    if (match(Token.isKeyword)) {
+      // TODO: This is different from the VM (which is wrong). Need to make
+      // sure we don't parse the class body as a block argument.
+      superclass = primary()
+    }
+
+    var methods = []
+    consume(Token.leftBrace, "Expect '{' after class name.")
+    ignoreLine()
+
+    while (!match(Token.rightBrace) && peek() != Token.eof) {
+      methods.add(method())
+
+      // Don't require a newline after the last definition.
+      if (match(Token.rightBrace)) break
+
+      consumeLine("Expect newline after definition in class.")
+    }
+
+    return ClassStmt.new(foreignKeyword, name, superclass, methods)
+  }
+
+  method() {
+    // TODO: Foreign methods.
+    // TODO: Operators.
+    var staticKeyword
+    if (match(Token.staticKeyword)) {
+      staticKeyword = _previous
+    }
+
+    var constructKeyword
+    if (match(Token.constructKeyword)) {
+      constructKeyword = _previous
+    }
+
+    // TODO: Error if both "static" and "construct" are present.
+
+    var name = consume(Token.name, "Expect method name.")
+    var parameters
+
+    if (match(Token.leftParen)) {
+      ignoreLine()
+      if (!match(Token.rightParen)) {
+        parameters = parameterList()
+        ignoreLine()
+        consume(Token.rightParen, "Expect ')' after parameters.")
+      }
+    }
+
+    consume(Token.leftBrace, "Expect '{' before method body.")
+    var body = finishBlock()
+    return Method.new(staticKeyword, constructKeyword, name, parameters, body)
+  }
+
   statement() {
-    // TODO: break, for, if, return, while.
+    if (match(Token.breakKeyword)) {
+      return BreakStmt.new(_previous)
+    }
+
+    if (match(Token.returnKeyword)) {
+      var keyword = _previous
+      var value
+      if (peek() != Token.line) {
+        value = expression()
+      }
+
+      return ReturnStmt.new(keyword, value)
+    }
+
+    // TODO: for, if, while.
     return expression()
+  }
+
+  // Parses the rest of a curly-braced block after the "{" has been consumed.
+  finishBlock() {
+    // An empty block.
+    if (match(Token.rightBrace)) return BlockStmt.new([])
+
+    // If there's no line after the "{", it's a single-expression body.
+    if (!matchLine()) {
+      var expr = expression()
+      consume(Token.rightBrace, "Expect '}' at end of block.")
+      return expr
+    }
+
+    // Empty blocks (with just a newline inside) do nothing.
+    if (match(Token.rightBrace)) return BlockStmt.new([])
+
+    var statements = []
+    while (peek() != Token.eof) {
+      statements.add(definition())
+      consumeLine("Expect newline after statement.")
+
+      if (match(Token.rightBrace)) break
+    }
+
+    return BlockStmt.new(statements)
   }
 
   expression() { assignment() }
@@ -245,12 +369,27 @@ class Parser {
   argumentList() {
     var arguments = []
 
+    ignoreLine()
     while (true) {
       arguments.add(expression())
       if (!match(Token.comma)) break
+      ignoreLine()
     }
 
     return arguments
+  }
+
+  // parameterList: name ( "," name )*
+  parameterList() {
+    var parameters = []
+
+    while (true) {
+      parameters.add(consume(Token.name, "Expect parameter name."))
+      if (!match(Token.comma)) break
+      ignoreLine()
+    }
+
+    return parameters
   }
 
   // primary:
@@ -273,6 +412,7 @@ class Parser {
     if (match(Token.staticField))   return StaticFieldExpr.new(_previous)
 
     if (match(Token.number))        return NumExpr.new(_previous)
+    if (match(Token.string))        return StringExpr.new(_previous)
 
     // TODO: This parses all bare names as "getter calls". Is that what we want?
     if (peek() == Token.name)       return methodCall(null)
@@ -319,13 +459,18 @@ class Parser {
     var leftBrace = _previous
     var entries = []
 
+    ignoreLine()
+
     while (peek() != Token.rightBrace) {
       var key = expression()
       consume(Token.colon, "Expect ':' after map key.")
 
       var value = expression()
       entries.add(MapEntry.new(key, value))
+
+      ignoreLine()
       if (!match(Token.comma)) break
+      ignoreLine()
     }
 
     var rightBrace = consume(Token.rightBrace, "Expect '}' after map entries.")
@@ -366,7 +511,7 @@ class Parser {
     return null
   }
 
-  // Consumes one or more newlines. Returns `true` if at least one was matched.
+  // Consumes zero or more newlines. Returns `true` if at least one was matched.
   matchLine() {
     if (!match(Token.line)) return false
     while (match(Token.line)) {
@@ -374,6 +519,16 @@ class Parser {
     }
 
     return true
+  }
+
+  // Same as [matchLine()], but makes it clear that the intent is to discard
+  // newlines appearing where this is called.
+  ignoreLine() { matchLine() }
+
+  // Consumes one or more newlines.
+  consumeLine(error) {
+    consume(Token.line, error)
+    ignoreLine()
   }
 
   // Reads and consumes the next token.
@@ -395,22 +550,45 @@ class Parser {
 
   // Returns the type of the next token.
   peek() {
-    if (!_current) _current = _lexer.readToken()
+    if (_current == null) _current = _lexer.readToken()
     return _current.type
   }
 
   error(message) {
-    // TODO: Handle this better.
-    var token = _previous
-    if (token.type == Token.line) {
-      token = "newline"
-    } else if (token.type == Token.eof) {
-      token = "end of input"
-    } else if (token.type == Token.error) {
-      token = "invalid character '%(token.text)'"
-    }
+    var token = _current != null ? _current : _previous
 
-    System.print("Error on %(token): %(message)")
+    var red = "\x1b[31m"
+    var cyan = "\x1b[36m"
+    var gray = "\x1b[30;1m"
+    var normal = "\x1b[0m"
+
+    // TODO: Move this functionality somewhere better so we can use it for
+    // other errors.
+    var source = token.source
+    System.print("[%(source.path) %(token.lineStart):%(token.columnStart)] " +
+        "%(red)Error:%(normal) %(message) (%(token.type))")
+
+    var line = source.getLine(token.lineStart)
+    if (token.type == Token.line) {
+      // The newline is the error, so make it visible.
+      System.print("%(line)%(gray)\\n%(normal)")
+      System.print("%(repeat_(" ", line.count))%(red)^^%(normal)")
+    } else {
+      System.print(line)
+
+      var space = repeat_(" ", token.columnStart - 1)
+      var highlight = "^"
+      var length = token.columnEnd - token.columnStart
+      if (length > 1) {
+        highlight = "^" + repeat_("-", length - 2) + "^"
+      }
+      System.print("%(space)%(red)%(highlight)%(normal)")
+    }
+  }
+
+  // TODO: Make this a "*" method on String.
+  repeat_(string, count) {
+    if (count == 0) return ""
+    return (1..count).map { string }.join()
   }
 }
-
