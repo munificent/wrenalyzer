@@ -3,6 +3,7 @@ import "process" for Process
 
 import "lexer" for Lexer
 import "parser" for Parser
+import "reporter" for Reporter
 import "source_file" for SourceFile
 import "token" for Token
 
@@ -21,7 +22,8 @@ class Wrenalyzer {
 //      if (token.type == Token.eof) break
 //    }
 
-    var parser = Parser.new(lexer)
+    var reporter = Reporter.new()
+    var parser = Parser.new(lexer, reporter)
     var ast = parser.parseModule()
     System.print(ast)
   }

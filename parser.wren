@@ -72,8 +72,8 @@ var PREFIX_OPERATORS = [
 ]
 
 class Scope {
-  construct new(parser) {
-    _parser = parser
+  construct new(reporter) {
+    _reporter = reporter
 
     // TODO: Hard-coding these is a hack (as is using "true" for their value
     // instead of a token). Should load the core library and implicitly import
@@ -107,7 +107,8 @@ class Scope {
   /// Declares a variable with [name] in this scope.
   declare(name) {
     if (currentScope.containsKey(name.text)) {
-      _parser.error("A variable named '%(name.text)' is already defined in " +
+      _reporter.error(
+            "A variable named '%(name.text)' is already defined in " +
             "this scope, on line %(currentScope[name.text].lineStart).",
             [currentScope[name.text], name])
     }
@@ -132,7 +133,7 @@ class Scope {
     //   declare.
 
     // If we got here, it's not defined.
-    _parser.error("Variable '%(name.text)' is not defined.", [name])
+    _reporter.error("Variable '%(name.text)' is not defined.", [name])
   }
 
   begin() {
@@ -145,10 +146,11 @@ class Scope {
 }
 
 class Parser {
-  construct new(lexer) {
+  construct new(lexer, reporter) {
     _lexer = lexer
+    _reporter = reporter
     _current = _lexer.readToken()
-    _scope = Scope.new(this)
+    _scope = Scope.new(reporter)
   }
 
   parseModule() {
@@ -750,74 +752,8 @@ class Parser {
     return _current.type
   }
 
+  /// Reports an error on the most recent token.
   error(message) {
-    var token = _current != null ? _current : _previous
-    error(message, [token])
-  }
-
-  /// Reports an error with [message] stemming from the given list of [tokens].
-  /// The last token, if there is more than one, is considered the primary
-  /// token that led to the error. The others are informative and related to it.
-  error(message, tokens) {
-    // The main erroneous token is always the last.
-    var mainToken = tokens[-1]
-    var red = "\x1b[31m"
-    var cyan = "\x1b[36m"
-    var gray = "\x1b[30;1m"
-    var normal = "\x1b[0m"
-
-    // TODO: Move this functionality somewhere better so we can use it for
-    // other errors.
-    var source = mainToken.source
-    System.print(
-        "[%(source.path) %(mainToken.lineStart):%(mainToken.columnStart)] " +
-        "%(red)Error:%(normal) %(message)")
-
-    var lineWidth = 0
-    for (token in tokens) {
-      var width = token.lineEnd.toString.count
-      if (width > lineWidth) lineWidth = width
-    }
-
-    // TODO: Collapse output if multiple tokens are on the same line.
-    for (token in tokens) {
-      var color = token == mainToken ? red : cyan
-      var end = token == mainToken ? "^" : "."
-      var mid = token == mainToken ? "-" : "."
-
-      var line = source.getLine(token.lineStart)
-      var lineNum = "%(gray)%(padLeft_(token.lineStart, lineWidth)):%(normal) "
-      var indent = padLeft_(" ", lineWidth + 2)
-
-      if (token.type == Token.line) {
-        // The newline is the error, so make it visible.
-        System.print("%(lineNum)%(line)%(gray)\\n%(normal)")
-        System.print("%(indent)%(repeat_(" ", line.count))" +
-            "%(color)%(end)%(end)%(normal)")
-      } else {
-        System.print("%(lineNum)%(line)")
-
-        var space = repeat_(" ", token.columnStart - 1)
-        var highlight = end
-        var length = token.columnEnd - token.columnStart
-        if (length > 1) {
-          highlight = end + repeat_(mid, length - 2) + end
-        }
-        System.print("%(indent)%(space)%(color)%(highlight)%(normal)")
-      }
-    }
-  }
-
-  // TODO: Make this a "*" method on String.
-  repeat_(string, count) {
-    if (count == 0) return ""
-    return (1..count).map { string }.join()
-  }
-
-  // TODO: Add padBefore() and padAfter() to String?
-  padLeft_(value, width) {
-    var result = value.toString
-    while (result.count < width) result = " " + result
-    return result
+    _reporter.error(message, [_current != null ? _current : _previous])
   }
 }
