@@ -43,7 +43,7 @@ class Reporter {
       if (token.type == Token.line) {
         // The newline is the error, so make it visible.
         System.print("%(lineNum)%(line)%(GRAY)\\n%(NORMAL)")
-        System.print("%(indent)%(repeat_(" ", line.count))" +
+        System.print("%(indent)%(" " * line.count)" +
             "%(color)%(end)%(end)%(NORMAL)")
       } else {
         System.print("%(lineNum)%(line)")
@@ -52,7 +52,7 @@ class Reporter {
         var highlight = end
         var length = token.columnEnd - token.columnStart
         if (length > 1) {
-          highlight = end + repeat_(mid, length - 2) + end
+          highlight = end + mid * (length - 2) + end
         }
         System.print("%(indent)%(space)%(color)%(highlight)%(NORMAL)")
       }
