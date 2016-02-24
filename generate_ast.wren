@@ -23,7 +23,8 @@ var EXPRS = {
   "StaticField": ["name"],
   "String": ["value"],
   "Subscript": ["receiver", "leftBracket", "arguments", "rightBracket"],
-  "This": ["keyword"]
+  "This": ["keyword"],
+  "Variable": ["name"]
 }
 
 var STMTS = {

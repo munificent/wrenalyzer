@@ -99,6 +99,18 @@ class StaticFieldExpr is Expr {
   }
 }
 
+class VariableExpr is Expr {
+  construct new(name) {
+    _name = name
+  }
+
+  name { _name }
+
+  toString {
+    return "Variable(%(_name))"
+  }
+}
+
 class FieldExpr is Expr {
   construct new(name) {
     _name = name

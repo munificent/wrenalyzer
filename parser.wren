@@ -26,6 +26,7 @@ import "ast" for
     StringExpr,
     SubscriptExpr,
     ThisExpr,
+    VariableExpr,
     VarStmt,
     WhileStmt
 import "lexer" for Lexer
@@ -70,10 +71,84 @@ var PREFIX_OPERATORS = [
   Token.tilde
 ]
 
+class Scope {
+  construct new(parser) {
+    _parser = parser
+
+    // TODO: Hard-coding these is a hack (as is using "true" for their value
+    // instead of a token). Should load the core library and implicitly import
+    // it.
+    var moduleScope = {
+      "Bool": true,
+      "Class": true,
+      "Fiber": true,
+      "Fn": true,
+      "List": true,
+      "Map": true,
+      "MapKeySequence": true,
+      "MapSequence": true,
+      "MapValueSequence": true,
+      "Null": true,
+      "Num": true,
+      "Object": true,
+      "Range": true,
+      "Sequence": true,
+      "String": true,
+      "StringByteSequence": true,
+      "StringCodePointSequence": true,
+      "System": true,
+      "WhereSequence": true
+    }
+    _scopes = [moduleScope]
+  }
+
+  currentScope { _scopes[-1] }
+
+  /// Declares a variable with [name] in this scope.
+  declare(name) {
+    if (currentScope.containsKey(name.text)) {
+      _parser.error("A variable named '%(name.text)' is already defined in " +
+            "this scope, on line %(currentScope[name.text].lineStart).",
+            [currentScope[name.text], name])
+    }
+
+    currentScope[name.text] = name
+  }
+
+  /// Looks for a previously declared variable with [name].
+  ///
+  /// Reports an error if not found.
+  resolve(name) {
+    for (i in (_scopes.count - 1)..0) {
+      if (_scopes[i].containsKey(name.text)) {
+        // Found it.
+        return _scopes[i][name.text]
+      }
+    }
+
+    // TODO: Need to handle variables inside methods.
+    // - Lowercase ones should not search past the method boundary.
+    // - Capitalized ones should go straight to the top level, and implicitly
+    //   declare.
+
+    // If we got here, it's not defined.
+    _parser.error("Variable '%(name.text)' is not defined.", [name])
+  }
+
+  begin() {
+    _scopes.add({})
+  }
+
+  end() {
+    _scopes.removeAt(-1)
+  }
+}
+
 class Parser {
   construct new(lexer) {
     _lexer = lexer
     _current = _lexer.readToken()
+    _scope = Scope.new(this)
   }
 
   parseModule() {
@@ -110,8 +185,7 @@ class Parser {
 
         variables = []
         while (true) {
-          var name = consume(Token.name, "Expect variable name.")
-          variables.add(name)
+          variables.add(declareVariable("imported variable"))
           if (!match(Token.comma)) break
           ignoreLine()
         }
@@ -121,7 +195,7 @@ class Parser {
     }
 
     if (match(Token.varKeyword)) {
-      var name = consume(Token.name, "Expect variable name.")
+      var name = declareVariable("variable")
       var initializer
       if (match(Token.equal)) {
         initializer = expression()
@@ -135,7 +209,7 @@ class Parser {
 
   // Parses the rest of a class definition after the "class" token.
   finishClass(foreignKeyword) {
-    var name = consume(Token.name, "Expect class name.")
+    var name = declareVariable("class")
 
     var superclass
     if (match(Token.isKeyword)) {
@@ -161,6 +235,8 @@ class Parser {
   }
 
   method() {
+    _scope.begin()
+
     // TODO: Foreign methods.
     // Note: This parses more permissively than the grammar actually is. For
     // example, it will allow "static construct *()". We'll report errors on
@@ -203,6 +279,8 @@ class Parser {
 
     consume(Token.leftBrace, "Expect '{' before method body.")
     var body = finishBlock()
+    _scope.end()
+
     return Method.new(staticKeyword, constructKeyword, name, parameters, body)
   }
 
@@ -225,6 +303,7 @@ class Parser {
     }
 
     if (match(Token.forKeyword)) {
+      _scope.begin()
       consume(Token.leftParen, "Expect '(' after 'for'.")
       var variable = consume(Token.name, "Expect for loop variable name.")
       consume(Token.inKeyword, "Expect 'in' after loop variable.")
@@ -232,6 +311,7 @@ class Parser {
       var iterator = expression()
       consume(Token.rightParen, "Expect ')' after loop expression.")
       var body = block()
+      _scope.end()
       return ForStmt.new(variable, iterator, body)
     }
 
@@ -285,6 +365,7 @@ class Parser {
     // Empty blocks (with just a newline inside) do nothing.
     if (match(Token.rightBrace)) return BlockStmt.new([])
 
+    _scope.begin()
     var statements = []
     while (peek() != Token.eof) {
       statements.add(definition())
@@ -292,6 +373,7 @@ class Parser {
 
       if (match(Token.rightBrace)) break
     }
+    _scope.end()
 
     return BlockStmt.new(statements)
   }
@@ -387,7 +469,8 @@ class Parser {
             "Expect ']' after subscript arguments.")
         expr = SubscriptExpr.new(expr, leftBracket, arguments, rightBracket)
       } else if (match(Token.dot)) {
-        expr = methodCall(expr)
+        var name = consume(Token.name, "Expect method name after '.'.")
+        expr = methodCall(expr, name)
       } else {
         break
       }
@@ -396,18 +479,15 @@ class Parser {
     return expr
   }
 
-  // Parses a named method call, not including a possible leading receiver and
-  // "."
+  // Parses the argument list for a method call.
   //
-  // methodCall: Name ( "(" argumentList? ")" )? blockArgument?
+  // methodCall: ( "(" argumentList? ")" )? blockArgument?
   // blockArgument: "{" ( "|" parameterList "|" )? body "}"
   // parameterList: Name ( "," Name )*
   // body:
   //   | "\n" ( definition "\n" )*
   //   | expression
-  methodCall(receiver) {
-    var name = consume(Token.name, "Expect method name after '.'.")
-
+  methodCall(receiver, name) {
     var arguments
     if (match(Token.leftParen)) {
       // Allow an empty argument list. Note that we treat this differently than
@@ -424,15 +504,16 @@ class Parser {
     var blockParameters
     var blockBody
     if (match(Token.leftBrace)) {
+      _scope.begin()
       if (match(Token.pipe)) {
         blockParameters = parameterList()
         consume(Token.pipe, "Expect '|' after block parameters.")
       }
 
       blockBody = finishBlock()
+      _scope.end()
     }
 
-    // TODO: Block argument.
     return CallExpr.new(receiver, name, arguments, blockParameters, blockBody)
   }
 
@@ -455,12 +536,19 @@ class Parser {
     var parameters = []
 
     while (true) {
-      parameters.add(consume(Token.name, "Expect parameter name."))
+      parameters.add(declareVariable("parameter"))
       if (!match(Token.comma)) break
       ignoreLine()
     }
 
     return parameters
+  }
+
+  // Parses, declares, and returns a name token for a variable declaration.
+  declareVariable(kind) {
+    var name = consume(Token.name, "Expect %(kind) name.")
+    _scope.declare(name)
+    return name
   }
 
   // primary:
@@ -473,12 +561,14 @@ class Parser {
     if (match(Token.leftParen))         return grouping()
     if (match(Token.leftBracket))       return listLiteral()
     if (match(Token.leftBrace))         return mapLiteral()
+    if (match(Token.name))              return name()
 
     if (match(Token.falseKeyword))      return BoolExpr.new(_previous)
     if (match(Token.trueKeyword))       return BoolExpr.new(_previous)
     if (match(Token.nullKeyword))       return NullExpr.new(_previous)
     if (match(Token.thisKeyword))       return ThisExpr.new(_previous)
 
+    // TODO: Error if not inside class.
     if (match(Token.field))             return FieldExpr.new(_previous)
     if (match(Token.staticField))       return StaticFieldExpr.new(_previous)
 
@@ -486,13 +576,11 @@ class Parser {
     if (match(Token.string))            return StringExpr.new(_previous)
 
     if (peek() == Token.interpolation)  return stringInterpolation()
-
-    // TODO: This parses all bare names as "getter calls". Is that what we want?
-    if (peek() == Token.name)           return methodCall(null)
     // TODO: Token.super.
 
     error("Expected expression.")
     // TODO: Return what? Error Node?
+    return null
   }
 
   // Finishes parsing a parenthesized expression.
@@ -551,6 +639,20 @@ class Parser {
 
     var rightBrace = consume(Token.rightBrace, "Expect '}' after map entries.")
     return MapExpr.new(leftBrace, entries, rightBrace)
+  }
+
+  // Parses a reference to a name, which may either be a local variable, module
+  // variable, or an implicit self-send.
+  name() {
+    var name = _previous
+
+    // If it's a variable, treat it as such.
+    // TODO: Should not resolve outside a method if the name is lowercase.
+    if (_scope.resolve(name)) return VariableExpr.new(name)
+
+    // Otherwise, assume it's a self-send with an implicit receiver.
+    // TODO: Should only do this inside a method.
+    return methodCall(null, name)
   }
 
   // stringInterpolation: (interpolation expression )? string
@@ -650,7 +752,15 @@ class Parser {
 
   error(message) {
     var token = _current != null ? _current : _previous
+    error(message, [token])
+  }
 
+  /// Reports an error with [message] stemming from the given list of [tokens].
+  /// The last token, if there is more than one, is considered the primary
+  /// token that led to the error. The others are informative and related to it.
+  error(message, tokens) {
+    // The main erroneous token is always the last.
+    var mainToken = tokens[-1]
     var red = "\x1b[31m"
     var cyan = "\x1b[36m"
     var gray = "\x1b[30;1m"
@@ -658,25 +768,43 @@ class Parser {
 
     // TODO: Move this functionality somewhere better so we can use it for
     // other errors.
-    var source = token.source
-    System.print("[%(source.path) %(token.lineStart):%(token.columnStart)] " +
-        "%(red)Error:%(normal) %(message) (%(token.type))")
+    var source = mainToken.source
+    System.print(
+        "[%(source.path) %(mainToken.lineStart):%(mainToken.columnStart)] " +
+        "%(red)Error:%(normal) %(message)")
 
-    var line = source.getLine(token.lineStart)
-    if (token.type == Token.line) {
-      // The newline is the error, so make it visible.
-      System.print("%(line)%(gray)\\n%(normal)")
-      System.print("%(repeat_(" ", line.count))%(red)^^%(normal)")
-    } else {
-      System.print(line)
+    var lineWidth = 0
+    for (token in tokens) {
+      var width = token.lineEnd.toString.count
+      if (width > lineWidth) lineWidth = width
+    }
 
-      var space = repeat_(" ", token.columnStart - 1)
-      var highlight = "^"
-      var length = token.columnEnd - token.columnStart
-      if (length > 1) {
-        highlight = "^" + repeat_("-", length - 2) + "^"
+    // TODO: Collapse output if multiple tokens are on the same line.
+    for (token in tokens) {
+      var color = token == mainToken ? red : cyan
+      var end = token == mainToken ? "^" : "."
+      var mid = token == mainToken ? "-" : "."
+
+      var line = source.getLine(token.lineStart)
+      var lineNum = "%(gray)%(padLeft_(token.lineStart, lineWidth)):%(normal) "
+      var indent = padLeft_(" ", lineWidth + 2)
+
+      if (token.type == Token.line) {
+        // The newline is the error, so make it visible.
+        System.print("%(lineNum)%(line)%(gray)\\n%(normal)")
+        System.print("%(indent)%(repeat_(" ", line.count))" +
+            "%(color)%(end)%(end)%(normal)")
+      } else {
+        System.print("%(lineNum)%(line)")
+
+        var space = repeat_(" ", token.columnStart - 1)
+        var highlight = end
+        var length = token.columnEnd - token.columnStart
+        if (length > 1) {
+          highlight = end + repeat_(mid, length - 2) + end
+        }
+        System.print("%(indent)%(space)%(color)%(highlight)%(normal)")
       }
-      System.print("%(space)%(red)%(highlight)%(normal)")
     }
   }
 
@@ -684,5 +812,12 @@ class Parser {
   repeat_(string, count) {
     if (count == 0) return ""
     return (1..count).map { string }.join()
+  }
+
+  // TODO: Add padBefore() and padAfter() to String?
+  padLeft_(value, width) {
+    var result = value.toString
+    while (result.count < width) result = " " + result
+    return result
   }
 }
