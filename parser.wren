@@ -1,6 +1,7 @@
 import "ast" for
     AssignmentExpr,
     BlockStmt,
+    Body,
     BoolExpr,
     BreakStmt,
     CallExpr,
@@ -25,8 +26,8 @@ import "ast" for
     StaticFieldExpr,
     StringExpr,
     SubscriptExpr,
+    SuperExpr,
     ThisExpr,
-    VariableExpr,
     VarStmt,
     WhileStmt
 import "lexer" for Lexer
@@ -71,86 +72,11 @@ var PREFIX_OPERATORS = [
   Token.tilde
 ]
 
-class Scope {
-  construct new(reporter) {
-    _reporter = reporter
-
-    // TODO: Hard-coding these is a hack (as is using "true" for their value
-    // instead of a token). Should load the core library and implicitly import
-    // it.
-    var moduleScope = {
-      "Bool": true,
-      "Class": true,
-      "Fiber": true,
-      "Fn": true,
-      "List": true,
-      "Map": true,
-      "MapKeySequence": true,
-      "MapSequence": true,
-      "MapValueSequence": true,
-      "Null": true,
-      "Num": true,
-      "Object": true,
-      "Range": true,
-      "Sequence": true,
-      "String": true,
-      "StringByteSequence": true,
-      "StringCodePointSequence": true,
-      "System": true,
-      "WhereSequence": true
-    }
-    _scopes = [moduleScope]
-  }
-
-  currentScope { _scopes[-1] }
-
-  /// Declares a variable with [name] in this scope.
-  declare(name) {
-    if (currentScope.containsKey(name.text)) {
-      _reporter.error(
-            "A variable named '%(name.text)' is already defined in " +
-            "this scope, on line %(currentScope[name.text].lineStart).",
-            [currentScope[name.text], name])
-    }
-
-    currentScope[name.text] = name
-  }
-
-  /// Looks for a previously declared variable with [name].
-  ///
-  /// Reports an error if not found.
-  resolve(name) {
-    for (i in (_scopes.count - 1)..0) {
-      if (_scopes[i].containsKey(name.text)) {
-        // Found it.
-        return _scopes[i][name.text]
-      }
-    }
-
-    // TODO: Need to handle variables inside methods.
-    // - Lowercase ones should not search past the method boundary.
-    // - Capitalized ones should go straight to the top level, and implicitly
-    //   declare.
-
-    // If we got here, it's not defined.
-    _reporter.error("Variable '%(name.text)' is not defined.", [name])
-  }
-
-  begin() {
-    _scopes.add({})
-  }
-
-  end() {
-    _scopes.removeAt(-1)
-  }
-}
-
 class Parser {
   construct new(lexer, reporter) {
     _lexer = lexer
     _reporter = reporter
     _current = _lexer.readToken()
-    _scope = Scope.new(reporter)
   }
 
   parseModule() {
@@ -187,7 +113,7 @@ class Parser {
 
         variables = []
         while (true) {
-          variables.add(declareVariable("imported variable"))
+          variables.add(consume(Token.name, "Expect imported variable name."))
           if (!match(Token.comma)) break
           ignoreLine()
         }
@@ -197,7 +123,7 @@ class Parser {
     }
 
     if (match(Token.varKeyword)) {
-      var name = declareVariable("variable")
+      var name = consume(Token.name, "Expect variable name.")
       var initializer
       if (match(Token.equal)) {
         initializer = expression()
@@ -211,7 +137,7 @@ class Parser {
 
   // Parses the rest of a class definition after the "class" token.
   finishClass(foreignKeyword) {
-    var name = declareVariable("class")
+    var name = consume(Token.name, "Expect class name.")
 
     var superclass
     if (match(Token.isKeyword)) {
@@ -237,8 +163,6 @@ class Parser {
   }
 
   method() {
-    _scope.begin()
-
     // TODO: Foreign methods.
     // Note: This parses more permissively than the grammar actually is. For
     // example, it will allow "static construct *()". We'll report errors on
@@ -280,43 +204,54 @@ class Parser {
     // TODO: Setters.
 
     consume(Token.leftBrace, "Expect '{' before method body.")
-    var body = finishBlock()
-    _scope.end()
+    var body = finishBody(parameters)
 
-    return Method.new(staticKeyword, constructKeyword, name, parameters, body)
+    return Method.new(staticKeyword, constructKeyword, name, body)
   }
 
   statement() {
+    // Break statement.
     if (match(Token.breakKeyword)) {
       return BreakStmt.new(_previous)
     }
 
+    // If statement.
     if (match(Token.ifKeyword)) {
       consume(Token.leftParen, "Expect '(' after 'if'.")
       ignoreLine()
       var condition = expression()
       consume(Token.rightParen, "Expect ')' after if condition.")
-      var thenBranch = block()
+      var thenBranch = statement()
       var elseBranch
       if (match(Token.elseKeyword)) {
-        elseBranch = block()
+        elseBranch = statement()
       }
       return IfStmt.new(condition, thenBranch, elseBranch)
     }
 
+    // For statement.
     if (match(Token.forKeyword)) {
-      _scope.begin()
       consume(Token.leftParen, "Expect '(' after 'for'.")
       var variable = consume(Token.name, "Expect for loop variable name.")
       consume(Token.inKeyword, "Expect 'in' after loop variable.")
       ignoreLine()
       var iterator = expression()
       consume(Token.rightParen, "Expect ')' after loop expression.")
-      var body = block()
-      _scope.end()
+      var body = statement()
       return ForStmt.new(variable, iterator, body)
     }
 
+    // While statement.
+    if (match(Token.whileKeyword)) {
+      consume(Token.leftParen, "Expect '(' after 'while'.")
+      ignoreLine()
+      var condition = expression()
+      consume(Token.rightParen, "Expect ')' after while condition.")
+      var body = statement()
+      return WhileStmt.new(condition, body)
+    }
+
+    // Return statement.
     if (match(Token.returnKeyword)) {
       var keyword = _previous
       var value
@@ -327,47 +262,43 @@ class Parser {
       return ReturnStmt.new(keyword, value)
     }
 
-    if (match(Token.whileKeyword)) {
-      consume(Token.leftParen, "Expect '(' after 'while'.")
+    // Block statement.
+    if (match(Token.leftBrace)) {
+      var statements = []
       ignoreLine()
-      var condition = expression()
-      consume(Token.rightParen, "Expect ')' after while condition.")
-      var body = block()
-      return WhileStmt.new(condition, body)
+
+      if (!match(Token.rightBrace)) {
+        while (peek() != Token.eof) {
+          statements.add(definition())
+          consumeLine("Expect newline after statement.")
+
+          if (match(Token.rightBrace)) break
+        }
+      }
+
+      return BlockStmt.new(statements)
     }
 
-    // TODO: for, if, while.
+    // Expression statement.
     return expression()
   }
 
-  // Parses a curly block or an expression statement. Used in places like the
-  // arms of an if statement where either a single expression or a curly body
-  // is allowed.
-  block() {
-    // Curly block.
-    if (match(Token.leftBrace)) return finishBlock()
-
-    // Single statement body.
-    return statement()
-  }
-
-  // Parses the rest of a curly-braced block after the "{" has been consumed.
-  finishBlock() {
+  // Parses the rest of a method or block argument body.
+  finishBody(parameters) {
     // An empty block.
-    if (match(Token.rightBrace)) return BlockStmt.new([])
+    if (match(Token.rightBrace)) return Body.new(parameters, null, [])
 
     // If there's no line after the "{", it's a single-expression body.
     if (!matchLine()) {
       var expr = expression()
       ignoreLine()
       consume(Token.rightBrace, "Expect '}' at end of block.")
-      return expr
+      return Body.new(parameters, expr, null)
     }
 
     // Empty blocks (with just a newline inside) do nothing.
-    if (match(Token.rightBrace)) return BlockStmt.new([])
+    if (match(Token.rightBrace)) return Body.new(parameters, null, [])
 
-    _scope.begin()
     var statements = []
     while (peek() != Token.eof) {
       statements.add(definition())
@@ -375,9 +306,8 @@ class Parser {
 
       if (match(Token.rightBrace)) break
     }
-    _scope.end()
 
-    return BlockStmt.new(statements)
+    return Body.new(parameters, null, statements)
   }
 
   expression() { assignment() }
@@ -481,7 +411,8 @@ class Parser {
     return expr
   }
 
-  // Parses the argument list for a method call.
+  // Parses the argument list for a method call and creates a call expression
+  // for it.
   //
   // methodCall: ( "(" argumentList? ")" )? blockArgument?
   // blockArgument: "{" ( "|" parameterList "|" )? body "}"
@@ -490,6 +421,14 @@ class Parser {
   //   | "\n" ( definition "\n" )*
   //   | expression
   methodCall(receiver, name) {
+    var arguments = finishCall()
+    return CallExpr.new(receiver, name, arguments[0], arguments[1])
+  }
+
+  // Parses the argument list for a method call. Returns a list containing the
+  // argument list (if any) and block argument (if any). If either is missing,
+  // the list element at that position is `null`.
+  finishCall() {
     var arguments
     if (match(Token.leftParen)) {
       // Allow an empty argument list. Note that we treat this differently than
@@ -503,20 +442,18 @@ class Parser {
       }
     }
 
-    var blockParameters
-    var blockBody
+    var blockArgument
     if (match(Token.leftBrace)) {
-      _scope.begin()
+      var parameters
       if (match(Token.pipe)) {
-        blockParameters = parameterList()
+        parameters = parameterList()
         consume(Token.pipe, "Expect '|' after block parameters.")
       }
 
-      blockBody = finishBlock()
-      _scope.end()
+      blockArgument = finishBody(parameters)
     }
 
-    return CallExpr.new(receiver, name, arguments, blockParameters, blockBody)
+    return [arguments, blockArgument]
   }
 
   // argumentList: expression ( "," expression )*
@@ -538,19 +475,12 @@ class Parser {
     var parameters = []
 
     while (true) {
-      parameters.add(declareVariable("parameter"))
+      parameters.add(consume(Token.name, "Expect parameter name."))
       if (!match(Token.comma)) break
       ignoreLine()
     }
 
     return parameters
-  }
-
-  // Parses, declares, and returns a name token for a variable declaration.
-  declareVariable(kind) {
-    var name = consume(Token.name, "Expect %(kind) name.")
-    _scope.declare(name)
-    return name
   }
 
   // primary:
@@ -563,7 +493,8 @@ class Parser {
     if (match(Token.leftParen))         return grouping()
     if (match(Token.leftBracket))       return listLiteral()
     if (match(Token.leftBrace))         return mapLiteral()
-    if (match(Token.name))              return name()
+    if (match(Token.name))              return methodCall(null, _previous)
+    if (match(Token.superKeyword))      return superCall()
 
     if (match(Token.falseKeyword))      return BoolExpr.new(_previous)
     if (match(Token.trueKeyword))       return BoolExpr.new(_previous)
@@ -643,18 +574,15 @@ class Parser {
     return MapExpr.new(leftBrace, entries, rightBrace)
   }
 
-  // Parses a reference to a name, which may either be a local variable, module
-  // variable, or an implicit self-send.
-  name() {
-    var name = _previous
+  superCall() {
+    var name
+    if (match(Token.dot)) {
+      // It's a named super call.
+      name = consume(Token.name, "Expect method name after 'super.'.")
+    }
 
-    // If it's a variable, treat it as such.
-    // TODO: Should not resolve outside a method if the name is lowercase.
-    if (_scope.resolve(name)) return VariableExpr.new(name)
-
-    // Otherwise, assume it's a self-send with an implicit receiver.
-    // TODO: Should only do this inside a method.
-    return methodCall(null, name)
+    var arguments = finishCall()
+    return SuperExpr.new(name, arguments[0], arguments[1])
   }
 
   // stringInterpolation: (interpolation expression )? string

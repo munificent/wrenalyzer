@@ -4,6 +4,7 @@ import "process" for Process
 import "lexer" for Lexer
 import "parser" for Parser
 import "reporter" for Reporter
+import "resolver" for Resolver
 import "source_file" for SourceFile
 import "token" for Token
 
@@ -25,7 +26,11 @@ class Wrenalyzer {
     var reporter = Reporter.new()
     var parser = Parser.new(lexer, reporter)
     var ast = parser.parseModule()
-    System.print(ast)
+
+    var resolver = Resolver.new(reporter)
+    resolver.resolve(ast)
+
+    //System.print(ast)
   }
 
   processDirectory(path) {

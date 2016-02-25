@@ -62,4 +62,6 @@ class Chars {
            c >= lowerA && c <= lowerF ||
            c >= upperA && c <= upperF
   }
+
+  static isLowerAlpha(c) { c >= lowerA && c <= lowerZ }
 }

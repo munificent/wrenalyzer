@@ -9,7 +9,7 @@ import "io" for File
 var EXPRS = {
   "Assignment": ["target", "equal", "value"],
   "Bool": ["value"],
-  "Call": ["receiver", "name", "arguments", "blockParameters", "blockBody"],
+  "Call": ["receiver", "name", "arguments", "blockArgument"],
   "Conditional": ["condition", "question", "thenBranch", "colon", "elseBranch"],
   "Field": ["name"],
   "Grouping": ["leftParen", "expression", "rightParen"],
@@ -23,8 +23,8 @@ var EXPRS = {
   "StaticField": ["name"],
   "String": ["value"],
   "Subscript": ["receiver", "leftBracket", "arguments", "rightBracket"],
-  "This": ["keyword"],
-  "Variable": ["name"]
+  "Super": ["name", "arguments", "blockArgument"],
+  "This": ["keyword"]
 }
 
 var STMTS = {
@@ -58,6 +58,8 @@ class Module is Node {
 
   statements { _statements }
 
+  accept(visitor) { visitor.visitModule(this) }
+
   toString { \"Module(\%(_statements))\" }
 }
 
@@ -74,25 +76,43 @@ class MapEntry {
 }
 
 class Method {
-  construct new(staticKeyword, constructKeyword, name, parameters, body) {
+  construct new(staticKeyword, constructKeyword, name, body) {
     _staticKeyword = staticKeyword
     _constructKeyword = constructKeyword
     _name = name
-    _parameters = parameters
     _body = body
   }
 
   staticKeyword { _staticKeyword }
   constructKeyword { _constructKeyword }
   name { _name }
-  parameters { _parameters }
   body { _body }
 
+  accept(visitor) { visitor.visitMethod(this) }
+
   toString {
-    return \"Method(\%(_staticKeyword) \%(_constructKeyword) \%(_name) \%(_parameters) \%(_body))\"
+    return \"Method(\%(_staticKeyword) \%(_constructKeyword) \%(_name) \%(_body))\"
   }
 }
-")
+
+/// A block argument or method body.
+class Body {
+  construct new(parameters, expression, statements) {
+    _parameters = parameters
+    _expression = expression
+    _statements = statements
+  }
+
+  parameters { _parameters }
+  expression { _expression }
+  statements { _statements }
+
+  accept(visitor) { visitor.visitBody(this) }
+
+  toString {
+    return \"Body(\%(_parameters) \%(_expression) \%(_statements))\"
+  }
+}")
 
     writeClasses(EXPRS, "Expr")
     writeClasses(STMTS, "Stmt")
@@ -119,8 +139,8 @@ class Method {
         writeLine("  %(field) { _%(field) }")
       }
 
-      // TODO: Visitor interface.
-
+      writeLine()
+      writeLine("  accept(visitor) { visitor.visit%(name)%(superclass)(this) }")
       writeLine()
       writeLine("  toString {")
       var interpolation = fields.map {|field| "\%(_%(field))"}.join(" ")

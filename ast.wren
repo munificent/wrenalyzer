@@ -11,6 +11,8 @@ class Module is Node {
 
   statements { _statements }
 
+  accept(visitor) { visitor.visitModule(this) }
+
   toString { "Module(%(_statements))" }
 }
 
@@ -27,25 +29,43 @@ class MapEntry {
 }
 
 class Method {
-  construct new(staticKeyword, constructKeyword, name, parameters, body) {
+  construct new(staticKeyword, constructKeyword, name, body) {
     _staticKeyword = staticKeyword
     _constructKeyword = constructKeyword
     _name = name
-    _parameters = parameters
     _body = body
   }
 
   staticKeyword { _staticKeyword }
   constructKeyword { _constructKeyword }
   name { _name }
-  parameters { _parameters }
   body { _body }
 
+  accept(visitor) { visitor.visitMethod(this) }
+
   toString {
-    return "Method(%(_staticKeyword) %(_constructKeyword) %(_name) %(_parameters) %(_body))"
+    return "Method(%(_staticKeyword) %(_constructKeyword) %(_name) %(_body))"
   }
 }
 
+/// A block argument or method body.
+class Body {
+  construct new(parameters, expression, statements) {
+    _parameters = parameters
+    _expression = expression
+    _statements = statements
+  }
+
+  parameters { _parameters }
+  expression { _expression }
+  statements { _statements }
+
+  accept(visitor) { visitor.visitBody(this) }
+
+  toString {
+    return "Body(%(_parameters) %(_expression) %(_statements))"
+  }
+}
 
 class ListExpr is Expr {
   construct new(leftBracket, elements, rightBracket) {
@@ -57,6 +77,8 @@ class ListExpr is Expr {
   leftBracket { _leftBracket }
   elements { _elements }
   rightBracket { _rightBracket }
+
+  accept(visitor) { visitor.visitListExpr(this) }
 
   toString {
     return "List(%(_leftBracket) %(_elements) %(_rightBracket))"
@@ -70,6 +92,8 @@ class ThisExpr is Expr {
 
   keyword { _keyword }
 
+  accept(visitor) { visitor.visitThisExpr(this) }
+
   toString {
     return "This(%(_keyword))"
   }
@@ -81,6 +105,8 @@ class NullExpr is Expr {
   }
 
   value { _value }
+
+  accept(visitor) { visitor.visitNullExpr(this) }
 
   toString {
     return "Null(%(_value))"
@@ -94,20 +120,10 @@ class StaticFieldExpr is Expr {
 
   name { _name }
 
+  accept(visitor) { visitor.visitStaticFieldExpr(this) }
+
   toString {
     return "StaticField(%(_name))"
-  }
-}
-
-class VariableExpr is Expr {
-  construct new(name) {
-    _name = name
-  }
-
-  name { _name }
-
-  toString {
-    return "Variable(%(_name))"
   }
 }
 
@@ -118,28 +134,30 @@ class FieldExpr is Expr {
 
   name { _name }
 
+  accept(visitor) { visitor.visitFieldExpr(this) }
+
   toString {
     return "Field(%(_name))"
   }
 }
 
 class CallExpr is Expr {
-  construct new(receiver, name, arguments, blockParameters, blockBody) {
+  construct new(receiver, name, arguments, blockArgument) {
     _receiver = receiver
     _name = name
     _arguments = arguments
-    _blockParameters = blockParameters
-    _blockBody = blockBody
+    _blockArgument = blockArgument
   }
 
   receiver { _receiver }
   name { _name }
   arguments { _arguments }
-  blockParameters { _blockParameters }
-  blockBody { _blockBody }
+  blockArgument { _blockArgument }
+
+  accept(visitor) { visitor.visitCallExpr(this) }
 
   toString {
-    return "Call(%(_receiver) %(_name) %(_arguments) %(_blockParameters) %(_blockBody))"
+    return "Call(%(_receiver) %(_name) %(_arguments) %(_blockArgument))"
   }
 }
 
@@ -151,6 +169,8 @@ class PrefixExpr is Expr {
 
   operator { _operator }
   right { _right }
+
+  accept(visitor) { visitor.visitPrefixExpr(this) }
 
   toString {
     return "Prefix(%(_operator) %(_right))"
@@ -168,6 +188,8 @@ class GroupingExpr is Expr {
   expression { _expression }
   rightParen { _rightParen }
 
+  accept(visitor) { visitor.visitGroupingExpr(this) }
+
   toString {
     return "Grouping(%(_leftParen) %(_expression) %(_rightParen))"
   }
@@ -183,6 +205,8 @@ class AssignmentExpr is Expr {
   target { _target }
   equal { _equal }
   value { _value }
+
+  accept(visitor) { visitor.visitAssignmentExpr(this) }
 
   toString {
     return "Assignment(%(_target) %(_equal) %(_value))"
@@ -200,6 +224,8 @@ class InfixExpr is Expr {
   operator { _operator }
   right { _right }
 
+  accept(visitor) { visitor.visitInfixExpr(this) }
+
   toString {
     return "Infix(%(_left) %(_operator) %(_right))"
   }
@@ -215,6 +241,8 @@ class MapExpr is Expr {
   leftBrace { _leftBrace }
   entries { _entries }
   rightBrace { _rightBrace }
+
+  accept(visitor) { visitor.visitMapExpr(this) }
 
   toString {
     return "Map(%(_leftBrace) %(_entries) %(_rightBrace))"
@@ -236,6 +264,8 @@ class ConditionalExpr is Expr {
   colon { _colon }
   elseBranch { _elseBranch }
 
+  accept(visitor) { visitor.visitConditionalExpr(this) }
+
   toString {
     return "Conditional(%(_condition) %(_question) %(_thenBranch) %(_colon) %(_elseBranch))"
   }
@@ -248,8 +278,28 @@ class NumExpr is Expr {
 
   value { _value }
 
+  accept(visitor) { visitor.visitNumExpr(this) }
+
   toString {
     return "Num(%(_value))"
+  }
+}
+
+class SuperExpr is Expr {
+  construct new(name, arguments, blockArgument) {
+    _name = name
+    _arguments = arguments
+    _blockArgument = blockArgument
+  }
+
+  name { _name }
+  arguments { _arguments }
+  blockArgument { _blockArgument }
+
+  accept(visitor) { visitor.visitSuperExpr(this) }
+
+  toString {
+    return "Super(%(_name) %(_arguments) %(_blockArgument))"
   }
 }
 
@@ -259,6 +309,8 @@ class StringExpr is Expr {
   }
 
   value { _value }
+
+  accept(visitor) { visitor.visitStringExpr(this) }
 
   toString {
     return "String(%(_value))"
@@ -278,6 +330,8 @@ class SubscriptExpr is Expr {
   arguments { _arguments }
   rightBracket { _rightBracket }
 
+  accept(visitor) { visitor.visitSubscriptExpr(this) }
+
   toString {
     return "Subscript(%(_receiver) %(_leftBracket) %(_arguments) %(_rightBracket))"
   }
@@ -290,8 +344,24 @@ class BoolExpr is Expr {
 
   value { _value }
 
+  accept(visitor) { visitor.visitBoolExpr(this) }
+
   toString {
     return "Bool(%(_value))"
+  }
+}
+
+class IdentifierExpr is Expr {
+  construct new(name) {
+    _name = name
+  }
+
+  name { _name }
+
+  accept(visitor) { visitor.visitIdentifierExpr(this) }
+
+  toString {
+    return "Identifier(%(_name))"
   }
 }
 
@@ -303,6 +373,8 @@ class InterpolationExpr is Expr {
 
   strings { _strings }
   expressions { _expressions }
+
+  accept(visitor) { visitor.visitInterpolationExpr(this) }
 
   toString {
     return "Interpolation(%(_strings) %(_expressions))"
@@ -320,6 +392,8 @@ class ForStmt is Stmt {
   iterator { _iterator }
   body { _body }
 
+  accept(visitor) { visitor.visitForStmt(this) }
+
   toString {
     return "For(%(_variable) %(_iterator) %(_body))"
   }
@@ -334,6 +408,8 @@ class ReturnStmt is Stmt {
   keyword { _keyword }
   value { _value }
 
+  accept(visitor) { visitor.visitReturnStmt(this) }
+
   toString {
     return "Return(%(_keyword) %(_value))"
   }
@@ -345,6 +421,8 @@ class BlockStmt is Stmt {
   }
 
   statements { _statements }
+
+  accept(visitor) { visitor.visitBlockStmt(this) }
 
   toString {
     return "Block(%(_statements))"
@@ -360,6 +438,8 @@ class VarStmt is Stmt {
   name { _name }
   initializer { _initializer }
 
+  accept(visitor) { visitor.visitVarStmt(this) }
+
   toString {
     return "Var(%(_name) %(_initializer))"
   }
@@ -373,6 +453,8 @@ class ImportStmt is Stmt {
 
   path { _path }
   variables { _variables }
+
+  accept(visitor) { visitor.visitImportStmt(this) }
 
   toString {
     return "Import(%(_path) %(_variables))"
@@ -390,6 +472,8 @@ class IfStmt is Stmt {
   thenBranch { _thenBranch }
   elseBranch { _elseBranch }
 
+  accept(visitor) { visitor.visitIfStmt(this) }
+
   toString {
     return "If(%(_condition) %(_thenBranch) %(_elseBranch))"
   }
@@ -401,6 +485,8 @@ class BreakStmt is Stmt {
   }
 
   keyword { _keyword }
+
+  accept(visitor) { visitor.visitBreakStmt(this) }
 
   toString {
     return "Break(%(_keyword))"
@@ -415,6 +501,8 @@ class WhileStmt is Stmt {
 
   condition { _condition }
   body { _body }
+
+  accept(visitor) { visitor.visitWhileStmt(this) }
 
   toString {
     return "While(%(_condition) %(_body))"
@@ -433,6 +521,8 @@ class ClassStmt is Stmt {
   name { _name }
   superclass { _superclass }
   methods { _methods }
+
+  accept(visitor) { visitor.visitClassStmt(this) }
 
   toString {
     return "Class(%(_foreignKeyword) %(_name) %(_superclass) %(_methods))"

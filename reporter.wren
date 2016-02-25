@@ -48,7 +48,7 @@ class Reporter {
       } else {
         System.print("%(lineNum)%(line)")
 
-        var space = repeat_(" ", token.columnStart - 1)
+        var space = " " * (token.columnStart - 1)
         var highlight = end
         var length = token.columnEnd - token.columnStart
         if (length > 1) {
@@ -57,12 +57,6 @@ class Reporter {
         System.print("%(indent)%(space)%(color)%(highlight)%(NORMAL)")
       }
     }
-  }
-
-  // TODO: Make this a "*" method on String.
-  repeat_(string, count) {
-    if (count == 0) return ""
-    return (1..count).map { string }.join()
   }
 
   // TODO: Add padBefore() and padAfter() to String?
