@@ -12,7 +12,7 @@ class Wrenalyzer {
   construct new () {}
 
   parseFile(path) {
-    System.print("Parsing %(path)")
+//    System.print("Parsing %(path)")
     var code = File.read(path)
     var source = SourceFile.new(path, code)
     var lexer = Lexer.new(source)

@@ -351,20 +351,6 @@ class BoolExpr is Expr {
   }
 }
 
-class IdentifierExpr is Expr {
-  construct new(name) {
-    _name = name
-  }
-
-  name { _name }
-
-  accept(visitor) { visitor.visitIdentifierExpr(this) }
-
-  toString {
-    return "Identifier(%(_name))"
-  }
-}
-
 class InterpolationExpr is Expr {
   construct new(strings, expressions) {
     _strings = strings

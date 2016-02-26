@@ -13,9 +13,8 @@ class Resolver is RecursiveVisitor {
 
   visitModule(node) {
     // TODO: Implicitly import core.
-    // TODO: Declare top level variables.
-
     super(node)
+    _scope.checkForwardReferences()
   }
 
 //  visitMethod(node) { super(node) }
@@ -83,6 +82,7 @@ class Resolver is RecursiveVisitor {
 //  visitBreakStmt(node) { super(node) }
 
   visitClassStmt(node) {
+    _scope.declare(node.name)
     _scope.beginClass()
     super(node)
     _scope.endClass()

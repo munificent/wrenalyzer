@@ -29,6 +29,8 @@ class Scope {
       "WhereSequence": true
     }
     _scopes = [moduleScope]
+
+    _forwardReferences = []
   }
 
   /// Declares a variable with [name] in the current scope.
@@ -73,6 +75,10 @@ class Scope {
         if (_scopes[0].containsKey(name.text)) {
           // Found it in a containing lexical scope.
           return _scopes[0][name.text]
+        } else {
+          // Assume it's a forward reference for now.
+          _forwardReferences.add(name)
+          return
         }
       }
     }
@@ -103,5 +109,15 @@ class Scope {
   /// Ends the current class definition.
   endClass() {
     _scopes.removeAt(-1)
+  }
+
+  /// Report errors for any module-level variables that were referenced but
+  /// never defined.
+  checkForwardReferences() {
+    for (use in _forwardReferences) {
+      if (!_scopes[0].containsKey(use.text)) {
+        _reporter.error("Variable '%(use.text)' is not defined.", [use])
+      }
+    }
   }
 }
