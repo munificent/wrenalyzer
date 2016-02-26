@@ -144,11 +144,32 @@ class Lexer {
         while (peek() != Chars.lineFeed && !isAtEnd) {
           advance()
         }
+      } else if (c == Chars.slash && peek(1) == Chars.star) {
+        advance()
+        advance()
+
+        // Block comments can nest.
+        var nesting = 1
+        while (nesting > 0) {
+          // TODO: Report error.
+          if (isAtEnd) return
+
+          if (peek() == Chars.slash && peek(1) == Chars.star) {
+            advance()
+            advance()
+            nesting = nesting + 1
+          } else if (peek() == Chars.star && peek(1) == Chars.slash) {
+            advance()
+            advance()
+            nesting = nesting - 1
+            if (nesting == 0) break
+          } else {
+            advance()
+          }
+        }
       } else {
         break
       }
-
-      // TODO: Block comments.
     }
   }
 
