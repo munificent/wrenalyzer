@@ -72,6 +72,30 @@ var PREFIX_OPERATORS = [
   Token.tilde
 ]
 
+var INFIX_OPERATORS = [
+  Token.pipePipe,
+  Token.ampAmp,
+  Token.equalEqual,
+  Token.bangEqual,
+  Token.isKeyword,
+  Token.less,
+  Token.lessEqual,
+  Token.greater,
+  Token.greaterEqual,
+  Token.pipe,
+  Token.caret,
+  Token.amp,
+  Token.lessLess,
+  Token.greaterGreater,
+  Token.dotDot,
+  Token.dotDotDot,
+  Token.plus,
+  Token.minus,
+  Token.star,
+  Token.slash,
+  Token.percent
+]
+
 class Parser {
   construct new(lexer, reporter) {
     _lexer = lexer
@@ -163,10 +187,14 @@ class Parser {
   }
 
   method() {
-    // TODO: Foreign methods.
     // Note: This parses more permissively than the grammar actually is. For
     // example, it will allow "static construct *()". We'll report errors on
     // invalid forms later.
+    var foreignKeyword
+    if (match(Token.foreignKeyword)) {
+      foreignKeyword = _previous
+    }
+
     var staticKeyword
     if (match(Token.staticKeyword)) {
       staticKeyword = _previous
@@ -177,36 +205,52 @@ class Parser {
       constructKeyword = _previous
     }
 
-    // TODO: Error if both "static" and "construct" are present.
+    // TODO: Error on invalid combinations of above keywords.
 
     var name
     var parameters
 
-    // TODO: Other operators.
+    var allowParameters = false
+
     if (match(Token.leftBracket)) {
       // Subscript operator.
       parameters = parameterList()
       consume(Token.rightBracket, "Expect ']' after parameters.")
-      // TODO: Subscript setter.
+      allowParameters = false
+    } else if (matchAny(INFIX_OPERATORS)) {
+      _previous
+      allowParameters = true
+    } else if (matchAny([Token.bang, Token.tilde])) {
+      allowParameters = false
     } else {
-      name = consume(Token.name, "Expect method name.")
+      consume(Token.name, "Expect method name.")
+      allowParameters = true
+    }
+    name = _previous
 
-      if (match(Token.leftParen)) {
+    if (match(Token.leftParen)) {
+      // Parse the parameter list even if not allowed to give better errors
+      // and have fewer cascaded errors.
+      if (!allowParameters) {
+        error("A parameter list is not allowed for this method.")
+      }
+
+      ignoreLine()
+      if (!match(Token.rightParen)) {
+        parameters = parameterList()
         ignoreLine()
-        if (!match(Token.rightParen)) {
-          parameters = parameterList()
-          ignoreLine()
-          consume(Token.rightParen, "Expect ')' after parameters.")
-        }
+        consume(Token.rightParen, "Expect ')' after parameters.")
       }
     }
-
     // TODO: Setters.
 
-    consume(Token.leftBrace, "Expect '{' before method body.")
-    var body = finishBody(parameters)
+    var body
+    if (foreignKeyword == null) {
+      consume(Token.leftBrace, "Expect '{' before method body.")
+      body = finishBody(parameters)
+    }
 
-    return Method.new(staticKeyword, constructKeyword, name, body)
+    return Method.new(foreignKeyword, staticKeyword, constructKeyword, name, body)
   }
 
   statement() {
@@ -512,8 +556,9 @@ class Parser {
     // TODO: Token.super.
 
     error("Expected expression.")
-    // TODO: Return what? Error Node?
-    return null
+    // Make a fake node so that we don't have to worry about null later.
+    // TODO: Should this be an error node?
+    return NullExpr.new(_previous)
   }
 
   // Finishes parsing a parenthesized expression.

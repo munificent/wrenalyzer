@@ -29,13 +29,15 @@ class MapEntry {
 }
 
 class Method {
-  construct new(staticKeyword, constructKeyword, name, body) {
+  construct new(foreignKeyword, staticKeyword, constructKeyword, name, body) {
+    _foreignKeyword = foreignKeyword
     _staticKeyword = staticKeyword
     _constructKeyword = constructKeyword
     _name = name
     _body = body
   }
 
+  foreignKeyword { _foreignKeyword }
   staticKeyword { _staticKeyword }
   constructKeyword { _constructKeyword }
   name { _name }

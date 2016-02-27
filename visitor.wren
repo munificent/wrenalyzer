@@ -7,7 +7,8 @@ class RecursiveVisitor {
   }
 
   visitMethod(node) {
-    node.body.accept(this)
+    // Foreign methods do not have a body.
+    if (node.body != null) node.body.accept(this)
   }
 
   visitBody(node) {
