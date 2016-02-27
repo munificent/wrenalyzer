@@ -3,7 +3,7 @@ import "process" for Process
 
 import "lexer" for Lexer
 import "parser" for Parser
-import "reporter" for Reporter
+import "reporter" for JsonReporter, PrettyReporter
 import "resolver" for Resolver
 import "source_file" for SourceFile
 import "token" for Token
@@ -23,11 +23,10 @@ class Wrenalyzer {
 //      if (token.type == Token.eof) break
 //    }
 
-    var reporter = Reporter.new()
-    var parser = Parser.new(lexer, reporter)
+    var parser = Parser.new(lexer, _reporter)
     var ast = parser.parseModule()
 
-    var resolver = Resolver.new(reporter)
+    var resolver = Resolver.new(_reporter)
     resolver.resolve(ast)
 
     //System.print(ast)
@@ -41,7 +40,20 @@ class Wrenalyzer {
     }
   }
 
-  run(path) {
+  run(arguments) {
+    if (arguments.count > 0 && arguments[0] == "--json") {
+      _reporter = JsonReporter.new()
+      arguments.removeAt(0)
+    } else {
+      _reporter = PrettyReporter.new()
+    }
+
+    if (arguments.count != 1) {
+      System.print("Usage: wrenalyzer [--json] <source file>")
+      return
+    }
+
+    var path = arguments[0]
     if (Directory.exists(path)) {
       processDirectory(path)
     } else {
@@ -50,8 +62,4 @@ class Wrenalyzer {
   }
 }
 
-if (Process.arguments.count != 1) {
-  System.print("Usage: wrenalyzer <source file>")
-} else {
-  Wrenalyzer.new().run(Process.arguments[0])
-}
+Wrenalyzer.new().run(Process.arguments)

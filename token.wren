@@ -77,6 +77,9 @@ class Token {
   type { _type }
   text { _source.substring(_start, _length) }
 
+  start { _start }
+  length { _length }
+  
   /// The 1-based line number that the token starts on.
   lineStart { _source.lineAt(_start) }
   lineEnd { _source.lineAt(_start + _length) }

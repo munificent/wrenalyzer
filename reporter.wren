@@ -1,13 +1,78 @@
 import "token" for Token
 
-// ASCI color escapes.
+// ANSI color escapes.
 var RED = "\x1b[31m"
 var CYAN = "\x1b[36m"
 var GRAY = "\x1b[30;1m"
 var NORMAL = "\x1b[0m"
 
-/// Outputs errors and other analysis results.
-class Reporter {
+/// Reports analysis results in an easily machine-parseable form.
+class JsonReporter {
+  construct new() {}
+
+  /// Reports an error with [message] stemming from the given list of [tokens].
+  /// The last token, if there is more than one, is consideRED the primary
+  /// token that led to the error. The others are informative and related to it.
+  error(message, tokens) {
+    var source = tokens[-1].source
+
+    var tokensJson = tokens.map {|token|
+      return {
+        "start": token.start,
+        "length": token.length,
+        "lineStart": token.lineStart,
+        "lineEnd": token.lineEnd,
+        "columnStart": token.columnStart,
+        "columnEnd": token.columnEnd
+      }
+    }.toList
+
+    var json = {
+      // TODO: Other severities.
+      "severity": "error",
+      "path": source.path,
+      "message": message,
+      "tokens": tokensJson
+    }
+
+    var parts = []
+    jsonToBuffer(json, parts)
+    System.print(parts.join())
+  }
+
+  jsonToBuffer(json, parts) {
+    if (json is List) {
+      parts.add("[")
+      var first = true
+      for (element in json) {
+        if (!first) parts.add(",")
+        first = false
+        jsonToBuffer(element, parts)
+      }
+      parts.add("]")
+    } else if (json is Map) {
+      parts.add("{")
+      var first = true
+      for (key in json.keys) {
+        if (!first) parts.add(",")
+        first = false
+        jsonToBuffer(key, parts)
+        parts.add(":")
+        jsonToBuffer(json[key], parts)
+      }
+      parts.add("}")
+    } else if (json is String) {
+      // TODO: Escape quotes and other special characters.
+      parts.add("\"%(json)\"")
+    } else {
+      // Num, Bool, Null.
+      parts.add(json)
+    }
+  }
+}
+
+/// Outputs errors and other analysis results in a human-friendly form.
+class PrettyReporter {
   construct new() {}
 
   /// Reports an error with [message] stemming from the given list of [tokens].
@@ -17,8 +82,6 @@ class Reporter {
     // The main erroneous token is always the last.
     var mainToken = tokens[-1]
 
-    // TODO: Move this functionality somewhere better so we can use it for
-    // other errors.
     var source = mainToken.source
     System.print(
         "[%(source.path) %(mainToken.lineStart):%(mainToken.columnStart)] " +
