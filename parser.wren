@@ -109,7 +109,9 @@ class Parser {
     var statements = []
     while (peek() != Token.eof) {
       statements.add(definition())
-      if (!matchLine()) break
+
+      if (peek() == Token.eof) break
+      consumeLine("Expect newline.")
     }
 
     consume(Token.eof, "Expect end of input.")
@@ -311,15 +313,16 @@ class Parser {
       var statements = []
       ignoreLine()
 
-      if (!match(Token.rightBrace)) {
-        while (peek() != Token.eof) {
-          statements.add(definition())
-          consumeLine("Expect newline after statement.")
+      while (peek() != Token.rightBrace && peek() != Token.eof) {
+        statements.add(definition())
 
-          if (match(Token.rightBrace)) break
-        }
+        // Don't require a newline after the last statement.
+        if (peek() == Token.rightBrace) break
+
+        consumeLine("Expect newline after statement.")
       }
 
+      consume(Token.rightBrace, "Expect '}' after block.")
       return BlockStmt.new(statements)
     }
 
@@ -555,7 +558,7 @@ class Parser {
     if (peek() == Token.interpolation)  return stringInterpolation()
     // TODO: Token.super.
 
-    error("Expected expression.")
+    error("Expect expression.")
     // Make a fake node so that we don't have to worry about null later.
     // TODO: Should this be an error node?
     return NullExpr.new(_previous)
