@@ -18,7 +18,6 @@ class Chars {
   static slash { 0x2f }
 
   static zero { 0x30 }
-  static question { 0x3f }
   static nine { 0x39 }
 
   static colon { 0x3a }
