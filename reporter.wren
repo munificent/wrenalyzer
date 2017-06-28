@@ -2,6 +2,7 @@ import "token" for Token
 
 // ANSI color escapes.
 var RED = "\x1b[31m"
+var YELLOW = "\x1b[33m"
 var CYAN = "\x1b[36m"
 var GRAY = "\x1b[30;1m"
 var NORMAL = "\x1b[0m"
@@ -13,7 +14,20 @@ class JsonReporter {
   /// Reports an error with [message] stemming from the given list of [tokens].
   /// The last token, if there is more than one, is consideRED the primary
   /// token that led to the error. The others are informative and related to it.
+
   error(message, tokens) {
+    report("error", message, tokens)
+  }
+
+  warning(message, tokens) {
+    report("warning", message, tokens)
+  }
+
+  info(message, tokens) {
+    report("info", message, tokens)
+  }
+
+  report(severity, message, tokens) {
     var source = tokens[-1].source
 
     var tokensJson = tokens.map {|token|
@@ -29,7 +43,7 @@ class JsonReporter {
 
     var json = {
       // TODO: Other severities.
-      "severity": "error",
+      "severity": severity,
       "path": source.path,
       "message": message,
       "tokens": tokensJson
@@ -75,17 +89,41 @@ class JsonReporter {
 class PrettyReporter {
   construct new() {}
 
-  /// Reports an error with [message] stemming from the given list of [tokens].
-  /// The last token, if there is more than one, is consideRED the primary
-  /// token that led to the error. The others are informative and related to it.
   error(message, tokens) {
+    report("error", message, tokens)
+  }
+
+  warning(message, tokens) {
+    report("warning", message, tokens)
+  }
+
+  info(message, tokens) {
+    report("info", message, tokens)
+  }
+
+  /// Reports an error with [message] stemming from the given list of [tokens].
+  /// The last token, if there is more than one, is considered the primary
+  /// token that led to the error. The others are informative and related to it.
+  report(severity, message, tokens) {
     // The main erroneous token is always the last.
     var mainToken = tokens[-1]
 
     var source = mainToken.source
+    var severityColor = GRAY
+    var severityText
+    if (severity == "error") {
+      severityText = "Error"
+      severityColor = RED
+    } else if (severity == "warning") {
+      severityText = "Warning"
+      severityColor = YELLOW
+    } else if (severity == "info") {
+      severityText = "Info"
+      severityColor = CYAN
+    }
     System.print(
         "[%(source.path) %(mainToken.lineStart):%(mainToken.columnStart)] " +
-        "%(RED)Error:%(NORMAL) %(message)")
+        "%(severityColor)%(severityText):%(NORMAL) %(message)")
 
     var lineWidth = 0
     for (token in tokens) {
@@ -95,7 +133,7 @@ class PrettyReporter {
 
     // TODO: Collapse output if multiple tokens are on the same line.
     for (token in tokens) {
-      var color = token == mainToken ? RED : CYAN
+      var color = token == mainToken ? severityColor : CYAN
       var end = token == mainToken ? "^" : "."
       var mid = token == mainToken ? "-" : "."
 
