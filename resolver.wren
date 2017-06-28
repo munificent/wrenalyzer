@@ -18,7 +18,11 @@ class Resolver is RecursiveVisitor {
     _scope.checkForwardReferences()
   }
 
-//  visitMethod(node) { super(node) }
+  visitMethod(node) {
+    _inInstanceMethod = (node.staticKeyword == null)
+    super(node)
+    _inInstanceMethod = false
+  }
 
   visitBody(node) {
     _scope.begin()
@@ -56,8 +60,12 @@ class Resolver is RecursiveVisitor {
 
 //  visitConditionalExpr(node) { super(node) }
 
-  // TODO: Make sure we're inside instance method.
-//  visitFieldExpr(node) { super(node) }
+  visitFieldExpr(node) {
+    if(!_inInstanceMethod) {
+      _reporter.error("Error at '%(node.name.text)': Cannot use an instance field in a static method.", [node.name])
+    }
+    super(node)
+  }
 //  visitGroupingExpr(node) { super(node) }
 
 //  visitInfixExpr(node) { super(node) }
