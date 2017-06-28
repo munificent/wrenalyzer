@@ -72,6 +72,8 @@ class Token {
     _length = length
   }
 
+  ..(other) { Token.new(_source, _type, _start, ((other.start - _start) + other.length)) }
+
   /// The source file this token was parsed from.
   source { _source }
   type { _type }
@@ -79,7 +81,7 @@ class Token {
 
   start { _start }
   length { _length }
-  
+
   /// The 1-based line number that the token starts on.
   lineStart { _source.lineAt(_start) }
   lineEnd { _source.lineAt(_start + _length) }

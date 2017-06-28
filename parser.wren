@@ -225,8 +225,13 @@ class Parser {
     } else {
       consume(Token.name, "Expect method name.")
       allowParameters = true
+      name = _previous
+      if (match(Token.equal)) {
+        // Create a new token for the name that includes the equals
+        name = name.._previous
+      }
     }
-    name = _previous
+    if (!name) name = _previous
 
     if (match(Token.leftParen)) {
       // Parse the parameter list even if not allowed to give better errors
@@ -242,7 +247,6 @@ class Parser {
         consume(Token.rightParen, "Expect ')' after parameters.")
       }
     }
-    // TODO: Setters.
 
     var body
     if (foreignKeyword == null) {
