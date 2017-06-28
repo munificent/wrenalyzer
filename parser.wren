@@ -742,4 +742,9 @@ class Parser {
   error(message) {
     _reporter.error(message, [_current != null ? _current : _previous])
   }
+
+  /// Reports an error on a token
+  error(message, token) {
+    _reporter.error(message, [token])
+  }
 }
