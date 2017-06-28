@@ -228,7 +228,26 @@ class Lexer {
     // Read the rest of the number.
     while (match {|c| Chars.isDigit(c) }) {}
 
-    // TODO: Floating point, scientific.
+    // See if it has a floating point. Make sure there is a digit after the "."
+    // so we don't get confused by method calls on number literals.
+    if(peek() == Chars.dot && Chars.isDigit(peek(1))) {
+        advance()
+        while (match {|c| Chars.isDigit(c) }) {}
+    }
+
+    // See if the number is in scientific notation.
+    if(match(Chars.lowerE) ||
+       match(Chars.upperE)) {
+        // Allow a negative exponent.
+        match(Chars.minus)
+
+        if(!Chars.isDigit(peek())){
+            error("Unterminated scientific notation.")
+        }
+
+        while (match {|c| Chars.isDigit(c) }) {}
+    }
+
     return makeToken(Token.number)
   }
 
