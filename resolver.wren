@@ -19,9 +19,9 @@ class Resolver is RecursiveVisitor {
   }
 
   visitMethod(node) {
-    _inInstanceMethod = (node.staticKeyword == null)
+    _inStaticMethod = (node.staticKeyword != null)
     super(node)
-    _inInstanceMethod = false
+    _inStaticMethod = false
   }
 
   visitBody(node) {
@@ -61,7 +61,7 @@ class Resolver is RecursiveVisitor {
 //  visitConditionalExpr(node) { super(node) }
 
   visitFieldExpr(node) {
-    if(!_inInstanceMethod) {
+    if(_inStaticMethod) {
       _reporter.error("Error at '%(node.name.text)': Cannot use an instance field in a static method.", [node.name])
     }
     super(node)
