@@ -56,8 +56,9 @@ var PUNCTUATORS = {
 }
 
 class Lexer {
-  construct new(source) {
+  construct new(source, reporter) {
     _source = source
+    _reporter = reporter
     _start = 0
     _current = 0
 
@@ -282,4 +283,9 @@ class Lexer {
 
   // Creates a token of [type] from the current character range.
   makeToken(type) { Token.new(_source, type, _start, _current - _start) }
+
+  error(message) {
+    _reporter.error(message, [makeToken(Token.error)])
+  }
+
 }

@@ -1,5 +1,5 @@
 import "io" for Directory, File
-import "process" for Process
+import "os" for Process
 
 import "lexer" for Lexer
 import "parser" for Parser
@@ -15,7 +15,7 @@ class Wrenalyzer {
 //    System.print("Parsing %(path)")
     var code = File.read(path)
     var source = SourceFile.new(path, code)
-    var lexer = Lexer.new(source)
+    var lexer = Lexer.new(source, _reporter)
 
 //    while (true) {
 //      var token = lexer.readToken()
