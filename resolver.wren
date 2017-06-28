@@ -4,6 +4,7 @@ import "visitor" for RecursiveVisitor
 /// Walks a parsed AST and resolves identifiers.
 class Resolver is RecursiveVisitor {
   construct new(reporter) {
+    _reporter = reporter
     _scope = Scope.new(reporter)
   }
 
@@ -40,7 +41,9 @@ class Resolver is RecursiveVisitor {
       _scope.resolve(node.name)
     }
 
-    // TODO: Error if name is a variable and we have arguments.
+    if (_scope.resolve(node.name) != null && node.arguments != null) {
+      _reporter.error("Cannot call '%(node.name.text)' as method.", [node.name])
+    }
 
     if (node.arguments != null) {
       for (argument in node.arguments) {
