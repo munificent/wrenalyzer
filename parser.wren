@@ -15,7 +15,7 @@ import "ast" for
     InfixExpr,
     InterpolationExpr,
     ListExpr,
-    MapEntry,
+    /*MapEntry,*/
     MapExpr,
     Method,
     Module,

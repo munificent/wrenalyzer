@@ -18,7 +18,7 @@ class Chars {
   static slash { 0x2f }
 
   static zero { 0x30 }
-  static question { 0x3f }
+  //static question { 0x3f }
   static nine { 0x39 }
 
   static colon { 0x3a }
@@ -28,6 +28,7 @@ class Chars {
   static question { 0x3f }
 
   static upperA { 0x41 }
+  static upperE { 0x45 }
   static upperF { 0x46 }
   static upperZ { 0x5a }
 
@@ -38,6 +39,7 @@ class Chars {
   static underscore { 0x5f }
 
   static lowerA { 0x61 }
+  static lowerE { 0x65 }
   static lowerF { 0x66 }
   static lowerX { 0x78 }
   static lowerZ { 0x7a }

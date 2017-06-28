@@ -16,6 +16,7 @@ class Module is Node {
   toString { "Module(%(_statements))" }
 }
 
+/*
 class MapEntry {
   construct new(key, value) {
     _key = key
@@ -27,6 +28,7 @@ class MapEntry {
 
   toString { "%(_key): %(_value)" }
 }
+*/
 
 class Method {
   construct new(foreignKeyword, staticKeyword, constructKeyword, name, body) {
