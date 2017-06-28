@@ -209,7 +209,10 @@ class Parser {
       constructKeyword = _previous
     }
 
-    // TODO: Error on invalid combinations of above keywords.
+    if (staticKeyword && constructKeyword) {
+      error("A constructor cannot be static.")
+    }
+    // TODO: Error on (other?) invalid combinations of above keywords.
 
     var name
     var parameters
