@@ -163,6 +163,8 @@ class Parser {
   finishClass(foreignKeyword) {
     var name = consume(Token.name, "Expect class name.")
 
+    _inClass = true
+
     var superclass
     if (match(Token.isKeyword)) {
       // TODO: This is different from the VM (which is wrong). Need to make
@@ -182,6 +184,8 @@ class Parser {
 
       consumeLine("Expect newline after definition in class.")
     }
+
+    _inClass = false
 
     return ClassStmt.new(foreignKeyword, name, superclass, methods)
   }
@@ -549,9 +553,14 @@ class Parser {
     if (match(Token.nullKeyword))       return NullExpr.new(_previous)
     if (match(Token.thisKeyword))       return ThisExpr.new(_previous)
 
-    // TODO: Error if not inside class.
-    if (match(Token.field))             return FieldExpr.new(_previous)
-    if (match(Token.staticField))       return StaticFieldExpr.new(_previous)
+    if (match(Token.field)) {
+      if (!_inClass) error("Cannot reference a field outside of a class definition.")
+      return FieldExpr.new(_previous)
+    }
+    if (match(Token.staticField)) {
+      if (!_inClass) error("Cannot use a static field outside of a class definition.")
+      return StaticFieldExpr.new(_previous)
+    }
 
     if (match(Token.number))            return NumExpr.new(_previous)
     if (match(Token.string))            return StringExpr.new(_previous)
