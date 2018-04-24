@@ -15,7 +15,7 @@ import "ast" for
     InfixExpr,
     InterpolationExpr,
     ListExpr,
-    MapEntry,
+    /*MapEntry,*/
     MapExpr,
     Method,
     Module,
@@ -165,6 +165,8 @@ class Parser {
   finishClass(foreignKeyword) {
     var name = consume(Token.name, "Expect class name.")
 
+    _inClass = true
+
     var superclass
     if (match(Token.isKeyword)) {
       // TODO: This is different from the VM (which is wrong). Need to make
@@ -184,6 +186,8 @@ class Parser {
 
       consumeLine("Expect newline after definition in class.")
     }
+
+    _inClass = false
 
     return ClassStmt.new(foreignKeyword, name, superclass, methods)
   }
@@ -207,7 +211,10 @@ class Parser {
       constructKeyword = _previous
     }
 
-    // TODO: Error on invalid combinations of above keywords.
+    if (staticKeyword && constructKeyword) {
+      error("A constructor cannot be static.")
+    }
+    // TODO: Error on (other?) invalid combinations of above keywords.
 
     var name
     var parameters
@@ -227,8 +234,13 @@ class Parser {
     } else {
       consume(Token.name, "Expect method name.")
       allowParameters = true
+      name = _previous
+      if (match(Token.equal)) {
+        // Create a new token for the name that includes the equals
+        name = name.._previous
+      }
     }
-    name = _previous
+    if (!name) name = _previous
 
     if (match(Token.leftParen)) {
       // Parse the parameter list even if not allowed to give better errors
@@ -244,7 +256,6 @@ class Parser {
         consume(Token.rightParen, "Expect ')' after parameters.")
       }
     }
-    // TODO: Setters.
 
     var body
     if (foreignKeyword == null) {
@@ -548,9 +559,14 @@ class Parser {
     if (match(Token.nullKeyword))       return NullExpr.new(_previous)
     if (match(Token.thisKeyword))       return ThisExpr.new(_previous)
 
-    // TODO: Error if not inside class.
-    if (match(Token.field))             return FieldExpr.new(_previous)
-    if (match(Token.staticField))       return StaticFieldExpr.new(_previous)
+    if (match(Token.field)) {
+      if (!_inClass) error("Cannot reference a field outside of a class definition.")
+      return FieldExpr.new(_previous)
+    }
+    if (match(Token.staticField)) {
+      if (!_inClass) error("Cannot use a static field outside of a class definition.")
+      return StaticFieldExpr.new(_previous)
+    }
 
     if (match(Token.number))            return NumExpr.new(_previous)
     if (match(Token.string))            return StringExpr.new(_previous)
@@ -731,5 +747,10 @@ class Parser {
   /// Reports an error on the most recent token.
   error(message) {
     _reporter.error(message, [_current != null ? _current : _previous])
+  }
+
+  /// Reports an error on a token
+  error(message, token) {
+    _reporter.error(message, [token])
   }
 }

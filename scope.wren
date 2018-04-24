@@ -17,6 +17,7 @@ class Scope {
       "MapKeySequence": true,
       "MapSequence": true,
       "MapValueSequence": true,
+      "MapEntry": true,
       "Null": true,
       "Num": true,
       "Object": true,

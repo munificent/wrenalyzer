@@ -4,6 +4,7 @@ import "visitor" for RecursiveVisitor
 /// Walks a parsed AST and resolves identifiers.
 class Resolver is RecursiveVisitor {
   construct new(reporter) {
+    _reporter = reporter
     _scope = Scope.new(reporter)
   }
 
@@ -17,7 +18,11 @@ class Resolver is RecursiveVisitor {
     _scope.checkForwardReferences()
   }
 
-//  visitMethod(node) { super(node) }
+  visitMethod(node) {
+    _inStaticMethod = (node.staticKeyword != null)
+    super(node)
+    _inStaticMethod = false
+  }
 
   visitBody(node) {
     _scope.begin()
@@ -40,7 +45,9 @@ class Resolver is RecursiveVisitor {
       _scope.resolve(node.name)
     }
 
-    // TODO: Error if name is a variable and we have arguments.
+    if (_scope.resolve(node.name) != null && node.arguments != null) {
+      _reporter.error("Cannot call '%(node.name.text)' as method.", [node.name])
+    }
 
     if (node.arguments != null) {
       for (argument in node.arguments) {
@@ -53,8 +60,12 @@ class Resolver is RecursiveVisitor {
 
 //  visitConditionalExpr(node) { super(node) }
 
-  // TODO: Make sure we're inside instance method.
-//  visitFieldExpr(node) { super(node) }
+  visitFieldExpr(node) {
+    if(_inStaticMethod) {
+      _reporter.error("Error at '%(node.name.text)': Cannot use an instance field in a static method.", [node.name])
+    }
+    super(node)
+  }
 //  visitGroupingExpr(node) { super(node) }
 
 //  visitInfixExpr(node) { super(node) }
