@@ -63,7 +63,7 @@ class Module is Node {
   toString { \"Module(\%(_statements))\" }
 }
 
-class MapEntry {
+class MapEntryNode {
   construct new(key, value) {
     _key = key
     _value = value

@@ -1,4 +1,4 @@
-import "chars" for Chars
+import "./chars" for Chars
 
 class Scope {
   construct new(reporter) {

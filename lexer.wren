@@ -1,5 +1,5 @@
-import "chars" for Chars
-import "token" for Token
+import "./chars" for Chars
+import "./token" for Token
 
 var KEYWORDS = {
   "break": Token.breakKeyword,

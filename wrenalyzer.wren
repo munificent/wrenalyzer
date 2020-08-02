@@ -1,12 +1,12 @@
 import "io" for Directory, File
-import "process" for Process
+import "os" for Process
 
-import "lexer" for Lexer
-import "parser" for Parser
-import "reporter" for JsonReporter, PrettyReporter
-import "resolver" for Resolver
-import "source_file" for SourceFile
-import "token" for Token
+import "./lexer" for Lexer
+import "./parser" for Parser
+import "./reporter" for JsonReporter, PrettyReporter
+import "./resolver" for Resolver
+import "./source_file" for SourceFile
+import "./token" for Token
 
 class Wrenalyzer {
   construct new () {}

@@ -1,4 +1,4 @@
-import "token" for Token
+import "./token" for Token
 
 // ANSI color escapes.
 var RED = "\x1b[31m"
@@ -76,7 +76,7 @@ class PrettyReporter {
   construct new() {}
 
   /// Reports an error with [message] stemming from the given list of [tokens].
-  /// The last token, if there is more than one, is consideRED the primary
+  /// The last token, if there is more than one, is considered the primary
   /// token that led to the error. The others are informative and related to it.
   error(message, tokens) {
     // The main erroneous token is always the last.

@@ -1,5 +1,5 @@
-import "scope" for Scope
-import "visitor" for RecursiveVisitor
+import "./scope" for Scope
+import "./visitor" for RecursiveVisitor
 
 /// Walks a parsed AST and resolves identifiers.
 class Resolver is RecursiveVisitor {

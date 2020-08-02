@@ -1,4 +1,4 @@
-import "chars" for Chars
+import "./chars" for Chars
 
 /// A single file of Wren source code.
 ///
