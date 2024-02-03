@@ -6,6 +6,7 @@ class Chars {
   static space { 0x20 }
   static bang { 0x21 }
   static quote { 0x22 }
+  static hash { 0x23 }
   static percent { 0x25 }
   static amp { 0x26 }
   static leftParen { 0x28 }

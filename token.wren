@@ -14,6 +14,7 @@ class Token {
   static star { "star" }
   static slash { "slash" }
   static percent { "percent" }
+  static hash { "hash" }
   static plus { "plus" }
   static minus { "minus" }
   static pipe { "pipe" }
@@ -36,6 +37,7 @@ class Token {
 
   // Keywords.
   static breakKeyword { "break" }
+  static continueKeyword { "continue" }
   static classKeyword { "class" }
   static constructKeyword { "construct" }
   static elseKeyword { "else" }
@@ -44,6 +46,7 @@ class Token {
   static foreignKeyword { "foreign" }
   static ifKeyword { "if" }
   static importKeyword { "import" }
+  static asKeyword { "as" }
   static inKeyword { "in" }
   static isKeyword { "is" }
   static nullKeyword { "null" }
@@ -79,7 +82,7 @@ class Token {
 
   start { _start }
   length { _length }
-  
+
   /// The 1-based line number that the token starts on.
   lineStart { _source.lineAt(_start) }
   lineEnd { _source.lineAt(_start + _length) }

@@ -117,6 +117,8 @@ class RecursiveVisitor {
 
   visitBreakStmt(node) {}
 
+  visitContinueStmt(node) {}
+
   visitClassStmt(node) {
     for (method in node.methods) {
       method.accept(this)

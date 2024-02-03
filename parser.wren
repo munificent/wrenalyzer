@@ -7,6 +7,7 @@ import "./ast" for
     CallExpr,
     ClassStmt,
     ConditionalExpr,
+    ContinueStmt,
     FieldExpr,
     ForStmt,
     GroupingExpr,
@@ -104,6 +105,13 @@ class Parser {
   }
 
   parseModule() {
+    // Ignore shebang on the first line
+    if (match(Token.hash) && match(Token.bang)) {
+      while (peek() != Token.line) {
+        consume()
+      }
+    }
+
     ignoreLine()
 
     var statements = []
@@ -137,9 +145,17 @@ class Parser {
       if (match(Token.forKeyword)) {
         ignoreLine()
 
-        variables = []
+        variables = {}
         while (true) {
-          variables.add(consume(Token.name, "Expect imported variable name."))
+          var identifier = consume(Token.name, "Expect imported variable name.")
+
+          // Parse the variable alias, if there is one.
+          var alias
+          if (match(Token.asKeyword)) {
+            alias = consume(Token.name, "Expect imported variable alias name.")
+          }
+
+          variables[identifier.toString] = alias == null ? identifier : alias
           if (!match(Token.comma)) break
           ignoreLine()
         }
@@ -259,6 +275,11 @@ class Parser {
     // Break statement.
     if (match(Token.breakKeyword)) {
       return BreakStmt.new(_previous)
+    }
+
+    // Continue statement.
+    if (match(Token.continueKeyword)) {
+      return ContinueStmt.new(_previous)
     }
 
     // If statement.

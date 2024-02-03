@@ -3,6 +3,7 @@ import "./token" for Token
 
 var KEYWORDS = {
   "break": Token.breakKeyword,
+  "continue": Token.continueKeyword,
   "class": Token.classKeyword,
   "construct": Token.constructKeyword,
   "else": Token.elseKeyword,
@@ -11,6 +12,7 @@ var KEYWORDS = {
   "foreign": Token.foreignKeyword,
   "if": Token.ifKeyword,
   "import": Token.importKeyword,
+  "as": Token.asKeyword,
   "in": Token.inKeyword,
   "is": Token.isKeyword,
   "null": Token.nullKeyword,
@@ -40,6 +42,7 @@ var PUNCTUATORS = {
   Chars.star: [Token.star],
   Chars.slash: [Token.slash],
   Chars.percent: [Token.percent],
+  Chars.hash: [Token.hash],
   Chars.plus: [Token.plus],
   Chars.minus: [Token.minus],
   Chars.tilde: [Token.tilde],
