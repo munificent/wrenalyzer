@@ -445,6 +445,13 @@ class ImportStmt is Stmt {
   accept(visitor) { visitor.visitImportStmt(this) }
 
   toString {
+    var variables = _variables.keys.map {|variable|
+      // Remove redunancy from un-aliased variables
+      if (_variables[variable] == variable) {
+        return variable
+      }
+      return "%(variable):%(_variables[variable])"
+    }
     return "Import(%(_path) %(_variables))"
   }
 }

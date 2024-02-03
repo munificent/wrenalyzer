@@ -12,6 +12,7 @@ var KEYWORDS = {
   "foreign": Token.foreignKeyword,
   "if": Token.ifKeyword,
   "import": Token.importKeyword,
+  "as": Token.asKeyword,
   "in": Token.inKeyword,
   "is": Token.isKeyword,
   "null": Token.nullKeyword,

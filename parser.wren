@@ -145,9 +145,17 @@ class Parser {
       if (match(Token.forKeyword)) {
         ignoreLine()
 
-        variables = []
+        variables = {}
         while (true) {
-          variables.add(consume(Token.name, "Expect imported variable name."))
+          var identifier = consume(Token.name, "Expect imported variable name.")
+
+          // Parse the variable alias, if there is one.
+          var alias
+          if (match(Token.asKeyword)) {
+            alias = consume(Token.name, "Expect imported variable alias name.")
+          }
+
+          variables[identifier.toString] = alias == null ? identifier : alias
           if (!match(Token.comma)) break
           ignoreLine()
         }

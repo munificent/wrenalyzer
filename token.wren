@@ -46,6 +46,7 @@ class Token {
   static foreignKeyword { "foreign" }
   static ifKeyword { "if" }
   static importKeyword { "import" }
+  static asKeyword { "as" }
   static inKeyword { "in" }
   static isKeyword { "is" }
   static nullKeyword { "null" }
