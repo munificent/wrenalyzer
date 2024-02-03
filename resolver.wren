@@ -80,6 +80,7 @@ class Resolver is RecursiveVisitor {
 
   // TODO: Warn on dead code.
 //  visitBreakStmt(node) { super(node) }
+//  visitContinueStmt(node) { super(node) }
 
   visitClassStmt(node) {
     _scope.declare(node.name)

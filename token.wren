@@ -36,6 +36,7 @@ class Token {
 
   // Keywords.
   static breakKeyword { "break" }
+  static continueKeyword { "continue" }
   static classKeyword { "class" }
   static constructKeyword { "construct" }
   static elseKeyword { "else" }
@@ -79,7 +80,7 @@ class Token {
 
   start { _start }
   length { _length }
-  
+
   /// The 1-based line number that the token starts on.
   lineStart { _source.lineAt(_start) }
   lineEnd { _source.lineAt(_start + _length) }

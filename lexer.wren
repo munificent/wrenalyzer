@@ -3,6 +3,7 @@ import "./token" for Token
 
 var KEYWORDS = {
   "break": Token.breakKeyword,
+  "continue": Token.continueKeyword,
   "class": Token.classKeyword,
   "construct": Token.constructKeyword,
   "else": Token.elseKeyword,

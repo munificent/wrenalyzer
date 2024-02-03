@@ -481,6 +481,20 @@ class BreakStmt is Stmt {
   }
 }
 
+class ContinueStmt is Stmt {
+  construct new(keyword) {
+    _keyword = keyword
+  }
+
+  keyword { _keyword }
+
+  accept(visitor) { visitor.visitContinueStmt(this) }
+
+  toString {
+    return "Continue(%(_keyword))"
+  }
+}
+
 class WhileStmt is Stmt {
   construct new(condition, body) {
     _condition = condition

@@ -7,6 +7,7 @@ import "./ast" for
     CallExpr,
     ClassStmt,
     ConditionalExpr,
+    ContinueStmt,
     FieldExpr,
     ForStmt,
     GroupingExpr,
@@ -259,6 +260,11 @@ class Parser {
     // Break statement.
     if (match(Token.breakKeyword)) {
       return BreakStmt.new(_previous)
+    }
+
+    // Continue statement.
+    if (match(Token.continueKeyword)) {
+      return ContinueStmt.new(_previous)
     }
 
     // If statement.
