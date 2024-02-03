@@ -41,6 +41,7 @@ var PUNCTUATORS = {
   Chars.star: [Token.star],
   Chars.slash: [Token.slash],
   Chars.percent: [Token.percent],
+  Chars.hash: [Token.hash],
   Chars.plus: [Token.plus],
   Chars.minus: [Token.minus],
   Chars.tilde: [Token.tilde],

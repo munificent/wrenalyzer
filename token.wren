@@ -14,6 +14,7 @@ class Token {
   static star { "star" }
   static slash { "slash" }
   static percent { "percent" }
+  static hash { "hash" }
   static plus { "plus" }
   static minus { "minus" }
   static pipe { "pipe" }

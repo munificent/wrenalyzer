@@ -105,6 +105,13 @@ class Parser {
   }
 
   parseModule() {
+    // Ignore shebang on the first line
+    if (match(Token.hash) && match(Token.bang)) {
+      while (peek() != Token.line) {
+        consume()
+      }
+    }
+
     ignoreLine()
 
     var statements = []
